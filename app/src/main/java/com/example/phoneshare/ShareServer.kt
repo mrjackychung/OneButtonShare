@@ -96,6 +96,49 @@ private val STRINGS = mapOf(
     )
 )
 
+/** iOS“快捷指令”一键存入相册：按钮文字 + 帮助页 */
+private val SC_BTN = mapOf(
+    "en" to Pair("⭐ Save all to Photos (no confirmations)", "First time? One-time setup (2 min)"),
+    "zh-Hans" to Pair("⭐ 一键存入相册（无需逐个确认）", "第一次使用？查看一次性设置（约 2 分钟）"),
+    "zh-Hant" to Pair("⭐ 一鍵存入相簿（無需逐個確認）", "第一次使用？查看一次性設定（約 2 分鐘）")
+)
+
+private val SC_HELP = mapOf(
+    "en" to Pair("One-time setup: Shortcuts app", listOf(
+        "Open the Shortcuts app on your iPhone and tap + to create a new shortcut.",
+        "Rename it exactly: SaveFromAndroid",
+        "Add action “Text”: tap the variable “Shortcut Input”, then type list.txt right after it.",
+        "Add action “Get Contents of URL” (its URL is the Text from the previous step).",
+        "Add action “Split Text” and choose “New Lines”.",
+        "Add action “Repeat with Each”.",
+        "Inside the repeat, add “Get Contents of URL” and set its URL to “Repeat Item”.",
+        "Right after it, still inside the repeat, add “Save to Photo Album”.",
+        "Done. Go back to the transfer page and tap the star button. Allow access when asked (first time only). Everything is saved to Photos with no more confirmations."
+    )),
+    "zh-Hans" to Pair("一次性设置：快捷指令", listOf(
+        "打开 iPhone 自带的「快捷指令」App，点右上角「+」新建。",
+        "把名称改成（大小写要一致）：SaveFromAndroid",
+        "添加动作「文本」：先点选变量「快捷指令输入」，紧接着输入 list.txt",
+        "添加动作「获取 URL 内容」（URL 就是上一步的文本）。",
+        "添加动作「拆分文本」，分隔符选「新行」。",
+        "添加动作「重复每个项目」。",
+        "在「重复」里面添加「获取 URL 内容」，URL 选择「重复项目」。",
+        "紧接着（仍在「重复」里面）添加「存储到相册」。",
+        "完成！回到传输页面点那个星星按钮，第一次会询问是否允许，点允许即可。以后每次都会一键全部存进「照片」，不再逐个确认。"
+    )),
+    "zh-Hant" to Pair("一次性設定：捷徑", listOf(
+        "打開 iPhone 內建的「捷徑」App，點右上角「+」新增。",
+        "把名稱改成（大小寫要一致）：SaveFromAndroid",
+        "加入動作「文字」：先點選變數「捷徑輸入」，緊接著輸入 list.txt",
+        "加入動作「取得 URL 的內容」（URL 就是上一步的文字）。",
+        "加入動作「分割文字」，分隔符選「新行」。",
+        "加入動作「重複每個項目」。",
+        "在「重複」裡面加入「取得 URL 的內容」，URL 選擇「重複項目」。",
+        "緊接著（仍在「重複」裡面）加入「儲存到相簿」。",
+        "完成！回到傳輸頁面點那個星星按鈕，第一次會詢問是否允許，點允許即可。之後每次都會一鍵全部存進「照片」，不再逐個確認。"
+    ))
+)
+
 private val LANG_NAMES = linkedMapOf(
     "en" to "English", "zh-Hans" to "简体中文", "zh-Hant" to "繁體中文", "ja" to "日本語",
     "ko" to "한국어", "es" to "Español", "fr" to "Français", "de" to "Deutsch"
@@ -128,16 +171,32 @@ class ShareServer(
         if (uri == "/" || uri.isEmpty()) {
             listener("open", -1)
             val lang = pickLang(session.headers["accept-language"], session.parms["lang"])
-            return page(lang)
+            return page(lang, session.headers["host"] ?: "")
+        }
+        if (uri == "/list.txt") {
+            val host = session.headers["host"] ?: ""
+            val body = items.indices.joinToString("\n") { "http://$host/f/$it?s=1" }
+            return NanoHTTPD.newFixedLengthResponse(Status.OK, "text/plain; charset=utf-8", body)
+        }
+        if (uri == "/help") {
+            val lang = pickLang(session.headers["accept-language"], session.parms["lang"])
+            val h = SC_HELP[lang] ?: SC_HELP.getValue("en")
+            val html = "<!doctype html><html><head><meta charset=\"utf-8\">" +
+                "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+                "<style>body{font-family:-apple-system,sans-serif;padding:16px;line-height:1.6}li{margin-bottom:10px}</style></head><body>" +
+                "<h2>${esc(h.first)}</h2><ol>" + h.second.joinToString("") { "<li>${esc(it)}</li>" } +
+                "</ol></body></html>"
+            return NanoHTTPD.newFixedLengthResponse(Status.OK, "text/html; charset=utf-8", html)
         }
         if (uri.startsWith("/f/")) {
             val idx = uri.removePrefix("/f/").toIntOrNull()
             val item = idx?.let { items.getOrNull(it) }
                 ?: return NanoHTTPD.newFixedLengthResponse(Status.NOT_FOUND, "text/plain", "Not found")
             val isDl = session.parms["dl"] == "1"
+            val track = isDl || session.parms["s"] == "1"
             val raw = FileInputStream(item.file)
             val stream: InputStream =
-                if (isDl) TrackingStream(raw, item.file.length()) { listener("file", idx) } else raw
+                if (track) TrackingStream(raw, item.file.length()) { listener("file", idx) } else raw
             val res = NanoHTTPD.newFixedLengthResponse(Status.OK, item.mime, stream, item.file.length())
             val enc = URLEncoder.encode(item.name, "UTF-8").replace("+", "%20")
             val dispo = if (isDl) "attachment" else "inline"
@@ -152,7 +211,7 @@ class ShareServer(
     private fun sizeText(b: Long): String =
         if (b >= 1048576) "%.1f MB".format(b / 1048576.0) else "%d KB".format(b / 1024)
 
-    private fun page(lang: String): Response {
+    private fun page(lang: String, host: String): Response {
         val s = STRINGS.getValue(lang)
         val n = items.size
         val sb = StringBuilder()
@@ -167,7 +226,8 @@ h2{margin:8px 0}.tip{color:#555;font-size:14px;margin:8px 0 14px}
 select{font-size:14px;padding:4px;border-radius:6px}
 .all{display:block;width:100%;box-sizing:border-box;text-align:center;background:#34c759;color:#fff;
  font-size:20px;font-weight:700;padding:18px 12px;border-radius:14px;text-decoration:none;margin:10px 0 6px}
-.hint{color:#666;font-size:12px;text-align:center}
+.hint{color:#666;font-size:12px;text-align:center;margin-bottom:10px}
+.sc{display:block;box-sizing:border-box;text-align:center;background:#ff9500;color:#fff;font-size:17px;font-weight:700;padding:14px 12px;border-radius:14px;text-decoration:none;margin:14px 0 6px}
 .c{background:#fff;border-radius:12px;padding:10px;margin-bottom:14px}
 img{width:100%;border-radius:8px;display:block}
 .v{background:#e5e5ea;border-radius:8px;text-align:center;padding:28px 0;font-size:40px}
@@ -184,6 +244,11 @@ img{width:100%;border-radius:8px;display:block}
         sb.append("</select></div>\n")
         sb.append("<a class=\"all\" href=\"#\" onclick=\"dlAll();return false\">${esc(s.dlAll.format(n))}</a>\n")
         sb.append("<div class=\"hint\">${esc(s.dlAllHint)}</div>\n")
+        val sc = SC_BTN[lang] ?: SC_BTN.getValue("en")
+        val scUrl = "shortcuts://run-shortcut?name=SaveFromAndroid&input=text&text=" +
+            URLEncoder.encode("http://$host/", "UTF-8")
+        sb.append("<a class=\"sc\" href=\"$scUrl\">${esc(sc.first)}</a>\n")
+        sb.append("<div class=\"hint\"><a href=\"/help?lang=$lang\">${esc(sc.second)}</a></div>\n")
         sb.append("<div class=\"tip\">${esc(s.tip)}</div>\n")
         items.forEachIndexed { i, it ->
             sb.append("<div class=\"c\">")

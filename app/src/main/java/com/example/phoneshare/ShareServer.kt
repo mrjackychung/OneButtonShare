@@ -115,6 +115,17 @@ private val SC_INSTALL = mapOf(
     "de" to "Erstes Mal? Hier tippen, um den Kurzbefehl zu installieren (einmalig)"
 )
 
+private val SC_NOTE = mapOf(
+    "en" to "This adds a shortcut named SaveFromAndroid to your iPhone’s Shortcuts app. You can delete it anytime (Shortcuts app → touch and hold → Delete).",
+    "zh-Hans" to "这会在你 iPhone 的「快捷指令」App 里添加一个名为 SaveFromAndroid 的快捷指令，随时可以删除（快捷指令 App → 长按 → 删除）。",
+    "zh-Hant" to "這會在你 iPhone 的「捷徑」App 裡加入一個名為 SaveFromAndroid 的捷徑，隨時可以刪除（捷徑 App → 長按 → 刪除）。",
+    "ja" to "iPhone の「ショートカット」アプリに SaveFromAndroid というショートカットが追加されます。いつでも削除できます（ショートカット → 長押し → 削除）。",
+    "ko" to "iPhone의 “단축어” 앱에 SaveFromAndroid 단축어가 추가됩니다. 언제든 삭제할 수 있습니다 (단축어 앱 → 길게 누르기 → 삭제).",
+    "es" to "Se añadirá un atajo llamado SaveFromAndroid a la app Atajos de tu iPhone. Puedes eliminarlo cuando quieras (Atajos → mantén pulsado → Eliminar).",
+    "fr" to "Un raccourci nommé SaveFromAndroid sera ajouté à l’app Raccourcis de votre iPhone. Vous pouvez le supprimer à tout moment (Raccourcis → appui long → Supprimer).",
+    "de" to "Es wird ein Kurzbefehl namens SaveFromAndroid in der Kurzbefehle-App deines iPhones hinzugefügt. Du kannst ihn jederzeit löschen (Kurzbefehle → gedrückt halten → Löschen)."
+)
+
 private val SC_SAVE = mapOf(
     "en" to "⭐ Save all to Photos",
     "zh-Hans" to "⭐ 一键存入相册",
@@ -294,8 +305,10 @@ img{width:100%;border-radius:8px;display:block}
         val scUrl = "shortcuts://run-shortcut?name=SaveFromAndroid&input=text&text=" +
             URLEncoder.encode("http://$host/", "UTF-8")
         sb.append("<a class=\"main\" href=\"$scUrl\">${esc(SC_SAVE[lang] ?: SC_SAVE.getValue("en"))}</a>\n")
-        if (SHORTCUT_ICLOUD_URL.isNotEmpty())
+        if (SHORTCUT_ICLOUD_URL.isNotEmpty()) {
             sb.append("<div class=\"hint\"><a href=\"$SHORTCUT_ICLOUD_URL\">${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}</a></div>\n")
+            sb.append("<div class=\"hint\">${esc(SC_NOTE[lang] ?: SC_NOTE.getValue("en"))}</div>\n")
+        }
         sb.append("<details class=\"adv\"><summary>${esc(MORE[lang] ?: "More options")}</summary>\n")
         sb.append("<a class=\"all\" href=\"#\" onclick=\"dlAll();return false\">${esc(s.dlAll.format(n))}</a>\n")
         sb.append("<div class=\"hint\">${esc(s.dlAllHint)}</div></details>\n")

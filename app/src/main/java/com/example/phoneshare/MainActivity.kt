@@ -50,6 +50,10 @@ class MainActivity : Activity() {
     private lateinit var tutorialBox: LinearLayout
     private lateinit var mainBox: LinearLayout
 
+    /** 系统语言为中文显示中文，其余显示英文。 */
+    private fun t(z: String, e: String): String =
+        if (java.util.Locale.getDefault().language.startsWith("zh")) z else e
+
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,25 +121,23 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, dp(10))
         }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        btn1 = Button(this).apply { text = "① 加入Wi-Fi"; setOnClickListener { mode = 1; updateMode() } }
-        btn2 = Button(this).apply { text = "② 传输照片"; setOnClickListener { mode = if (items.isEmpty()) 0 else 2; updateMode() } }
+        btn1 = Button(this).apply { text = t("① 加入Wi-Fi", "① Join Wi-Fi"); setOnClickListener { mode = 1; updateMode() } }
+        btn2 = Button(this).apply { text = t("② 传输照片", "② Send photos"); setOnClickListener { mode = if (items.isEmpty()) 0 else 2; updateMode() } }
         row.addView(btn1, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(btn2, LinearLayout.LayoutParams(0, -2, 1f))
 
         wifiBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        ssidEt = EditText(this).apply { hint = "Wi-Fi 名称（和 iPhone 连的是同一个）"; setSingleLine() }
+        ssidEt = EditText(this).apply { hint = t("Wi-Fi 名称（和 iPhone 连的是同一个）", "Wi-Fi name (same as your iPhone)"); setSingleLine() }
         pwdEt = EditText(this).apply {
-            hint = "Wi-Fi 密码（无密码留空）"; setSingleLine()
+            hint = t("Wi-Fi 密码（无密码留空）", "Wi-Fi password (leave empty if none)"); setSingleLine()
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
         }
-        val gen = Button(this).apply { text = "生成 Wi-Fi 二维码"; setOnClickListener { saveWifi(); refreshQr() } }
+        val gen = Button(this).apply { text = t("生成 Wi-Fi 二维码", "Generate Wi-Fi QR code"); setOnClickListener { saveWifi(); refreshQr() } }
         wifiBox.addView(ssidEt); wifiBox.addView(pwdEt); wifiBox.addView(gen)
 
         qrView = ImageView(this).apply { setBackgroundColor(Color.WHITE) }
         caption = TextView(this).apply { textSize = 14f; gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) }
 
-        val zh = java.util.Locale.getDefault().language.startsWith("zh")
-        fun t(z: String, e: String) = if (zh) z else e
 
         // ---- 新手教程（首页）----
         val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
@@ -227,10 +229,10 @@ class MainActivity : Activity() {
             }
         }
         if (uris.isEmpty()) {
-            info.text = "请在相册中选择图片或视频 → 分享 → 选择本应用。"
+            info.text = t("请在相册中选择图片或视频 → 分享 → 选择本应用。", "In Photos / Gallery, select photos or videos → Share → choose this app.")
             return
         }
-        info.text = "正在准备 ${uris.size} 张图片…"
+        info.text = t("正在准备 ${uris.size} 个文件…", "Preparing ${uris.size} file(s)…")
         Thread {
             val dir = File(cacheDir, "shared")
             dir.deleteRecursively(); dir.mkdirs()
@@ -282,14 +284,14 @@ class MainActivity : Activity() {
         when (kind) {
             "open" -> if (downloaded.isEmpty() && !status.text.startsWith("✅")) {
                 status.setTextColor(Color.parseColor("#007aff"))
-                status.text = "📱 iPhone 已连接，正在查看"
+                status.text = t("📱 iPhone 已连接，正在查看", "📱 iPhone connected, viewing")
             }
             "file" -> {
                 downloaded.add(idx)
                 if (downloaded.size >= items.size) allDone()
                 else {
                     status.setTextColor(Color.parseColor("#007aff"))
-                    status.text = "⬇ iPhone 已下载 ${downloaded.size}/${items.size} 张"
+                    status.text = t("⬇ iPhone 已下载 ${downloaded.size}/${items.size} 个", "⬇ iPhone downloaded ${downloaded.size}/${items.size}")
                 }
             }
         }
@@ -297,8 +299,8 @@ class MainActivity : Activity() {
 
     private fun allDone() {
         status.setTextColor(Color.parseColor("#1a9c3e"))
-        status.text = "✅ iPhone 已下载完成！"
-        Toast.makeText(this, "✅ iPhone 已下载完成", Toast.LENGTH_LONG).show()
+        status.text = t("✅ iPhone 已下载完成！", "✅ iPhone download complete!")
+        Toast.makeText(this, t("✅ iPhone 已下载完成", "✅ iPhone download complete"), Toast.LENGTH_LONG).show()
         try {
             @Suppress("DEPRECATION")
             (getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator).vibrate(400)
@@ -312,25 +314,25 @@ class MainActivity : Activity() {
             val ssid = ssidEt.text.toString()
             if (ssid.isEmpty()) {
                 qrView.setImageBitmap(null)
-                caption.text = "请填写 Wi-Fi 名称和密码后点击生成。\niPhone 相机扫码即可加入同一 Wi-Fi。"
+                caption.text = t("请填写 Wi-Fi 名称和密码后点击生成。\niPhone 相机扫码即可加入同一 Wi-Fi。", "Enter the Wi-Fi name and password, then tap Generate.\nScan with your iPhone camera to join the same Wi-Fi.")
                 return
             }
             val pwd = pwdEt.text.toString()
             val text = if (pwd.isEmpty()) "WIFI:T:nopass;S:${wifiEsc(ssid)};;"
             else "WIFI:T:WPA;S:${wifiEsc(ssid)};P:${wifiEsc(pwd)};;"
             qrView.setImageBitmap(makeQr(text))
-            caption.text = "用 iPhone 相机扫描 → 点“加入网络”"
+            caption.text = t("用 iPhone 相机扫描 → 点“加入网络”", "Scan with your iPhone camera → tap “Join Network”")
         } else {
             val ip = localIp()
             val s = server
             when {
-                s == null -> { qrView.setImageBitmap(null); caption.text = "还没有图片，请从相册分享图片到本应用。" }
-                ip == null -> { qrView.setImageBitmap(null); caption.text = "未检测到局域网地址，请连接 Wi-Fi 或开启热点。" }
+                s == null -> { qrView.setImageBitmap(null); caption.text = t("还没有图片，请从相册分享图片到本应用。", "No photos yet. Share photos from your gallery to this app.") }
+                ip == null -> { qrView.setImageBitmap(null); caption.text = t("未检测到局域网地址，请连接 Wi-Fi 或开启热点。", "No local network found. Connect to Wi-Fi or turn on your hotspot.") }
                 else -> {
                     val url = "http://$ip:${s.listeningPort}/"
                     qrView.setImageBitmap(makeQr(url))
-                    caption.text = "iPhone 相机扫码打开：\n$url\n（传输期间请保持本应用在前台）"
-                    info.text = "已就绪：${items.size} 张图片"
+                    caption.text = t("iPhone 相机扫码打开：\n$url\n（传输期间请保持本应用在前台）", "Scan with your iPhone camera:\n$url\n(Keep this app open while transferring)")
+                    info.text = t("已就绪：${items.size} 个文件", "Ready: ${items.size} file(s)")
                 }
             }
         }

@@ -34,66 +34,65 @@ private class Strs(
     val tip: String,
     val dlAll: String,   // %d = count
     val dlAllHint: String,
-    val seq: String,
     val dl: String
 )
 
 private val STRINGS = mapOf(
     "en" to Strs(
-        "%d photo(s) from Android",
-        "Long-press a photo and choose “Add to Photos”, or tap Download to save to Files.",
+        "%d file(s) from Android",
+        "Photos: long-press and choose “Add to Photos”. Or tap Download on any item.",
         "⬇ Download all (%d)",
-        "Saves one ZIP to Files. Tap the ZIP to unzip, then save the photos.",
-        "Download one by one", "Download"
+        "Files download one by one. If Safari asks, tap Download / Allow.",
+        "Download"
     ),
     "zh-Hans" to Strs(
-        "来自安卓的 %d 张照片",
-        "长按图片，选择“添加到照片”即可存入相册；也可点“下载”保存到“文件”。",
-        "⬇ 一键下载全部（%d 张）",
-        "将保存一个 ZIP 压缩包到“文件”，点按压缩包即可解压。",
-        "逐张下载", "下载"
+        "来自安卓的 %d 个文件",
+        "照片：长按图片，选择“添加到照片”；也可以点每项下面的“下载”。",
+        "⬇ 一键下载全部（%d 个）",
+        "将逐个依次下载。如果 Safari 弹出询问，请点“下载”或“允许”。",
+        "下载"
     ),
     "zh-Hant" to Strs(
-        "來自 Android 的 %d 張照片",
-        "長按圖片，選擇「加入照片」即可存入相簿；也可點「下載」儲存到「檔案」。",
-        "⬇ 一鍵下載全部（%d 張）",
-        "將儲存一個 ZIP 壓縮檔到「檔案」，點按壓縮檔即可解壓縮。",
-        "逐張下載", "下載"
+        "來自 Android 的 %d 個檔案",
+        "照片：長按圖片，選擇「加入照片」；也可以點每項下方的「下載」。",
+        "⬇ 一鍵下載全部（%d 個）",
+        "將逐個依序下載。如果 Safari 彈出詢問，請點「下載」或「允許」。",
+        "下載"
     ),
     "ja" to Strs(
-        "Android からの写真 %d 枚",
-        "写真を長押しして「“写真”に追加」を選ぶか、「ダウンロード」で「ファイル」に保存します。",
-        "⬇ すべてダウンロード（%d 枚）",
-        "ZIP ファイルが「ファイル」に保存されます。タップして解凍してください。",
-        "1枚ずつダウンロード", "ダウンロード"
+        "Android からのファイル %d 件",
+        "写真：長押しして「“写真”に追加」を選択。各項目の「ダウンロード」でも保存できます。",
+        "⬇ すべてダウンロード（%d 件）",
+        "1つずつ順番にダウンロードされます。Safari で確認が出たら「ダウンロード」を選んでください。",
+        "ダウンロード"
     ),
     "ko" to Strs(
-        "Android에서 보낸 사진 %d장",
-        "사진을 길게 눌러 “사진에 추가”를 선택하거나, 다운로드를 눌러 “파일”에 저장하세요.",
-        "⬇ 전체 다운로드 (%d장)",
-        "ZIP 파일이 “파일”에 저장됩니다. 탭하여 압축을 푸세요.",
-        "한 장씩 다운로드", "다운로드"
+        "Android에서 보낸 파일 %d개",
+        "사진: 길게 눌러 “사진에 추가”를 선택하세요. 각 항목의 다운로드를 눌러도 됩니다.",
+        "⬇ 전체 다운로드 (%d개)",
+        "하나씩 차례로 다운로드됩니다. Safari에서 묻으면 “다운로드”를 누르세요.",
+        "다운로드"
     ),
     "es" to Strs(
-        "%d foto(s) desde Android",
-        "Mantén pulsada una foto y elige “Añadir a Fotos”, o toca Descargar para guardar en Archivos.",
+        "%d archivo(s) desde Android",
+        "Fotos: mantén pulsada y elige “Añadir a Fotos”. O toca Descargar en cada elemento.",
         "⬇ Descargar todo (%d)",
-        "Guarda un ZIP en Archivos. Tócalo para descomprimir.",
-        "Descargar una por una", "Descargar"
+        "Se descargan uno por uno. Si Safari pregunta, toca Descargar.",
+        "Descargar"
     ),
     "fr" to Strs(
-        "%d photo(s) depuis Android",
-        "Appuyez longuement sur une photo puis « Ajouter à Photos », ou touchez Télécharger pour enregistrer dans Fichiers.",
+        "%d fichier(s) depuis Android",
+        "Photos : appui long puis « Ajouter à Photos ». Ou touchez Télécharger sur chaque élément.",
         "⬇ Tout télécharger (%d)",
-        "Enregistre un ZIP dans Fichiers. Touchez-le pour le décompresser.",
-        "Télécharger une par une", "Télécharger"
+        "Les fichiers se téléchargent un par un. Si Safari demande, touchez Télécharger.",
+        "Télécharger"
     ),
     "de" to Strs(
-        "%d Foto(s) von Android",
-        "Foto gedrückt halten und „Zu Fotos hinzufügen“ wählen, oder Laden tippen, um in Dateien zu sichern.",
+        "%d Datei(en) von Android",
+        "Fotos: gedrückt halten und „Zu Fotos hinzufügen“ wählen. Oder bei jedem Eintrag Laden tippen.",
         "⬇ Alle laden (%d)",
-        "Speichert eine ZIP-Datei in Dateien. Zum Entpacken antippen.",
-        "Einzeln laden", "Laden"
+        "Die Dateien werden nacheinander geladen. Wenn Safari fragt, „Laden“ tippen.",
+        "Laden"
     )
 )
 
@@ -121,7 +120,6 @@ private fun pickLang(header: String?, override: String?): String {
 class ShareServer(
     port: Int,
     private val items: List<ShareItem>,
-    private val zip: File?,
     private val listener: (kind: String, index: Int) -> Unit
 ) : NanoHTTPD(port) {
 
@@ -131,14 +129,6 @@ class ShareServer(
             listener("open", -1)
             val lang = pickLang(session.headers["accept-language"], session.parms["lang"])
             return page(lang)
-        }
-        if (uri == "/all.zip" && zip != null && zip.exists()) {
-            val res = NanoHTTPD.newFixedLengthResponse(
-                Status.OK, "application/zip",
-                TrackingStream(FileInputStream(zip), zip.length()) { listener("zip", -1) }, zip.length()
-            )
-            res.addHeader("Content-Disposition", "attachment; filename=\"photos.zip\"")
-            return res
         }
         if (uri.startsWith("/f/")) {
             val idx = uri.removePrefix("/f/").toIntOrNull()
@@ -150,7 +140,7 @@ class ShareServer(
                 if (isDl) TrackingStream(raw, item.file.length()) { listener("file", idx) } else raw
             val res = NanoHTTPD.newFixedLengthResponse(Status.OK, item.mime, stream, item.file.length())
             val enc = URLEncoder.encode(item.name, "UTF-8").replace("+", "%20")
-            val dispo = if (session.parms["dl"] == "1") "attachment" else "inline"
+            val dispo = if (isDl) "attachment" else "inline"
             res.addHeader("Content-Disposition", "$dispo; filename*=UTF-8''$enc")
             return res
         }
@@ -158,6 +148,9 @@ class ShareServer(
     }
 
     private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    private fun sizeText(b: Long): String =
+        if (b >= 1048576) "%.1f MB".format(b / 1048576.0) else "%d KB".format(b / 1024)
 
     private fun page(lang: String): Response {
         val s = STRINGS.getValue(lang)
@@ -169,17 +162,16 @@ class ShareServer(
 <title>${esc(s.title.format(n))}</title>
 <style>
 body{font-family:-apple-system,sans-serif;margin:0;padding:12px;background:#f2f2f7;color:#111}
-h2{margin:8px 0}.tip{color:#555;font-size:14px;margin-bottom:12px}
+h2{margin:8px 0}.tip{color:#555;font-size:14px;margin:8px 0 14px}
 .top{display:flex;justify-content:space-between;align-items:center}
 select{font-size:14px;padding:4px;border-radius:6px}
 .all{display:block;width:100%;box-sizing:border-box;text-align:center;background:#34c759;color:#fff;
  font-size:20px;font-weight:700;padding:18px 12px;border-radius:14px;text-decoration:none;margin:10px 0 6px}
-.hint{color:#666;font-size:12px;text-align:center;margin-bottom:8px}
-.seq{display:block;width:100%;box-sizing:border-box;text-align:center;background:#fff;color:#007aff;
- border:1px solid #007aff;font-size:16px;padding:12px;border-radius:12px;margin-bottom:16px}
+.hint{color:#666;font-size:12px;text-align:center}
 .c{background:#fff;border-radius:12px;padding:10px;margin-bottom:14px}
 img{width:100%;border-radius:8px;display:block}
-.n{font-size:13px;color:#666;margin:6px 0}
+.v{background:#e5e5ea;border-radius:8px;text-align:center;padding:28px 0;font-size:40px}
+.n{font-size:13px;color:#666;margin:6px 0;word-break:break-all}
 .b{display:inline-block;background:#007aff;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none}
 </style></head><body>
 <div class="top"><h2>${esc(s.title.format(n))}</h2>
@@ -190,20 +182,21 @@ img{width:100%;border-radius:8px;display:block}
             sb.append("<option value=\"$k\"${if (k == lang) " selected" else ""}>$v</option>")
         }
         sb.append("</select></div>\n")
-        sb.append("<a class=\"all\" href=\"/all.zip\">${esc(s.dlAll.format(n))}</a>\n")
+        sb.append("<a class=\"all\" href=\"#\" onclick=\"dlAll();return false\">${esc(s.dlAll.format(n))}</a>\n")
         sb.append("<div class=\"hint\">${esc(s.dlAllHint)}</div>\n")
-        sb.append("<a class=\"seq\" href=\"#\" onclick=\"seq();return false\">${esc(s.seq)}</a>\n")
         sb.append("<div class=\"tip\">${esc(s.tip)}</div>\n")
         items.forEachIndexed { i, it ->
-            sb.append("<div class=\"c\"><img src=\"/f/$i\" loading=\"lazy\">")
-            sb.append("<div class=\"n\">${esc(it.name)}</div>")
+            sb.append("<div class=\"c\">")
+            if (it.mime.startsWith("video/")) sb.append("<div class=\"v\">🎬</div>")
+            else sb.append("<img src=\"/f/$i\" loading=\"lazy\">")
+            sb.append("<div class=\"n\">${esc(it.name)} · ${sizeText(it.file.length())}</div>")
             sb.append("<a class=\"b\" href=\"/f/$i?dl=1\">${esc(s.dl)}</a></div>\n")
         }
         sb.append(
             """<script>
-function seq(){var l=document.querySelectorAll('a.b'),i=0;
+function dlAll(){var l=document.querySelectorAll('a.b'),i=0;
 (function nx(){if(i>=l.length)return;var a=document.createElement('a');
-a.href=l[i].href;a.download='';document.body.appendChild(a);a.click();a.remove();i++;setTimeout(nx,900);})();}
+a.href=l[i].href;a.download='';document.body.appendChild(a);a.click();a.remove();i++;setTimeout(nx,1500);})();}
 </script></body></html>"""
         )
         return NanoHTTPD.newFixedLengthResponse(Status.OK, "text/html; charset=utf-8", sb.toString())

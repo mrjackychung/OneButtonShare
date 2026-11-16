@@ -33,7 +33,6 @@ class MainActivity : Activity() {
 
     private var server: ShareServer? = null
     private val items = mutableListOf<ShareItem>()
-    private var zipFile: File? = null
     private var mode = 2 // 1 = Wi-Fi 二维码, 2 = 传输照片二维码
 
     private lateinit var info: TextView
@@ -164,7 +163,7 @@ class MainActivity : Activity() {
             }
         }
         if (uris.isEmpty()) {
-            info.text = "请在相册中选择图片 → 分享 → 选择本应用。"
+            info.text = "请在相册中选择图片或视频 → 分享 → 选择本应用。"
             return
         }
         info.text = "正在准备 ${uris.size} 张图片…"
@@ -174,30 +173,15 @@ class MainActivity : Activity() {
             val list = mutableListOf<ShareItem>()
             uris.forEachIndexed { i, uri ->
                 try {
-                    val name = queryName(uri) ?: "photo_$i.jpg"
-                    val mime = contentResolver.getType(uri) ?: "image/jpeg"
+                    val name = queryName(uri) ?: "file_$i"
+                    val mime = contentResolver.getType(uri) ?: "application/octet-stream"
                     val f = File(dir, "${i}_" + name.replace('/', '_'))
                     contentResolver.openInputStream(uri)?.use { ins -> f.outputStream().use { ins.copyTo(it) } }
                     list.add(ShareItem(f, name, mime))
                 } catch (_: Exception) {
                 }
             }
-            var zip: File? = null
-            try {
-                zip = File(cacheDir, "all.zip")
-                java.util.zip.ZipOutputStream(zip.outputStream().buffered()).use { zos ->
-                    zos.setLevel(0)
-                    list.forEach { it2 ->
-                        zos.putNextEntry(java.util.zip.ZipEntry(it2.file.name))
-                        it2.file.inputStream().use { ins -> ins.copyTo(zos) }
-                        zos.closeEntry()
-                    }
-                }
-            } catch (_: Exception) {
-                zip = null
-            }
             runOnUiThread {
-                zipFile = zip
                 items.clear(); items.addAll(list)
                 startServer()
                 mode = 2
@@ -218,7 +202,7 @@ class MainActivity : Activity() {
         server?.stop(); server = null
         for (port in 8088..8097) {
             try {
-                val s = ShareServer(port, items, zipFile) { kind, idx -> onServerEvent(kind, idx) }
+                val s = ShareServer(port, items) { kind, idx -> onServerEvent(kind, idx) }
                 s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
                 server = s
                 break
@@ -234,7 +218,6 @@ class MainActivity : Activity() {
                 status.setTextColor(Color.parseColor("#007aff"))
                 status.text = "📱 iPhone 已连接，正在查看"
             }
-            "zip" -> allDone()
             "file" -> {
                 downloaded.add(idx)
                 if (downloaded.size >= items.size) allDone()

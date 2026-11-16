@@ -222,7 +222,7 @@ class ShareServer(
             val th = uri.removePrefix("/t/").toIntOrNull()?.let { items.getOrNull(it) }?.thumb
             if (th != null && th.exists()) {
                 val res = NanoHTTPD.newFixedLengthResponse(Status.OK, "image/jpeg", FileInputStream(th), th.length())
-                res.addHeader("Cache-Control", "max-age=3600")
+                res.addHeader("Cache-Control", "no-store")
                 return res
             }
             return NanoHTTPD.newFixedLengthResponse(Status.NOT_FOUND, "text/plain", "Not found")
@@ -240,10 +240,13 @@ class ShareServer(
             val enc = URLEncoder.encode(item.name, "UTF-8").replace("+", "%20")
             val dispo = if (isDl) "attachment" else "inline"
             res.addHeader("Content-Disposition", "$dispo; filename*=UTF-8''$enc")
+            res.addHeader("Cache-Control", "no-store")
             return res
         }
         return NanoHTTPD.newFixedLengthResponse(Status.NOT_FOUND, "text/plain", "Not found")
     }
+
+    private val ver = System.currentTimeMillis()
 
     private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -301,7 +304,7 @@ img{width:100%;border-radius:8px;display:block}
             val isVideo = it.mime.startsWith("video/")
             val href = if (isVideo) "/f/$i?dl=1" else "/f/$i"
             sb.append("<a class=\"t\" href=\"$href\" data-dl=\"/f/$i?dl=1\">")
-            if (it.thumb != null) sb.append("<img src=\"/t/$i\" loading=\"lazy\">")
+            if (it.thumb != null) sb.append("<img src=\"/t/$i?v=$ver\" loading=\"lazy\">")
             else sb.append("<div class=\"ph\">${if (isVideo) "🎬" else "🖼"}</div>")
             if (isVideo) sb.append("<span class=\"vb\">▶</span>")
             sb.append("</a>")
@@ -314,6 +317,8 @@ function dlAll(){var l=document.querySelectorAll('a.t'),i=0;
 a.href=l[i].getAttribute('data-dl');a.download='';document.body.appendChild(a);a.click();a.remove();i++;setTimeout(nx,1500);})();}
 </script></body></html>"""
         )
-        return NanoHTTPD.newFixedLengthResponse(Status.OK, "text/html; charset=utf-8", sb.toString())
+        val pageRes = NanoHTTPD.newFixedLengthResponse(Status.OK, "text/html; charset=utf-8", sb.toString())
+        pageRes.addHeader("Cache-Control", "no-store")
+        return pageRes
     }
 }

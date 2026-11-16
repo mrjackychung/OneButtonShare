@@ -246,7 +246,9 @@ class MainActivity : Activity() {
                     val mime = contentResolver.getType(uri) ?: "application/octet-stream"
                     val f = File(dir, "${i}_" + name.replace('/', '_'))
                     contentResolver.openInputStream(uri)?.use { ins -> f.outputStream().use { ins.copyTo(it) } }
-                    list.add(ShareItem(f, name, mime))
+                    val tf = File(dir, "t_$i.jpg")
+                    val ok = Thumbs.make(f, mime.startsWith("video/"), tf)
+                    list.add(ShareItem(f, name, mime, if (ok) tf else null))
                 } catch (_: Exception) {
                 }
             }

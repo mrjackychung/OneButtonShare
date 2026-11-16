@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -33,7 +34,7 @@ class MainActivity : Activity() {
 
     private var server: ShareServer? = null
     private val items = mutableListOf<ShareItem>()
-    private var mode = 2 // 1 = Wi-Fi 二维码, 2 = 传输照片二维码
+    private var mode = 0 // 0 = 新手教程, 1 = Wi-Fi 二维码, 2 = 传输照片二维码
 
     private lateinit var info: TextView
     private lateinit var status: TextView
@@ -45,6 +46,8 @@ class MainActivity : Activity() {
     private lateinit var pwdEt: EditText
     private lateinit var btn1: Button
     private lateinit var btn2: Button
+    private lateinit var tutorialBox: LinearLayout
+    private lateinit var mainBox: LinearLayout
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
@@ -56,7 +59,7 @@ class MainActivity : Activity() {
         pwdEt.setText(sp.getString("pwd", ""))
         ssidEt.setText(sp.getString("ssid", ""))
         handleIntent(intent)
-        if (items.isEmpty()) mode = 1
+        mode = if (items.isEmpty()) 0 else 2
         updateMode()
     }
 
@@ -114,12 +117,12 @@ class MainActivity : Activity() {
         }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         btn1 = Button(this).apply { text = "① 加入Wi-Fi"; setOnClickListener { mode = 1; updateMode() } }
-        btn2 = Button(this).apply { text = "② 传输照片"; setOnClickListener { mode = 2; updateMode() } }
+        btn2 = Button(this).apply { text = "② 传输照片"; setOnClickListener { mode = if (items.isEmpty()) 0 else 2; updateMode() } }
         row.addView(btn1, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(btn2, LinearLayout.LayoutParams(0, -2, 1f))
 
         wifiBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        ssidEt = EditText(this).apply { hint = "Wi-Fi 名称 (SSID)"; setSingleLine() }
+        ssidEt = EditText(this).apply { hint = "Wi-Fi 名称（和 iPhone 连的是同一个）"; setSingleLine() }
         pwdEt = EditText(this).apply {
             hint = "Wi-Fi 密码（无密码留空）"; setSingleLine()
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
@@ -130,17 +133,48 @@ class MainActivity : Activity() {
         qrView = ImageView(this).apply { setBackgroundColor(Color.WHITE) }
         caption = TextView(this).apply { textSize = 14f; gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) }
 
-        root.addView(title); root.addView(info); root.addView(status); root.addView(row); root.addView(wifiBox)
-        root.addView(qrView, LinearLayout.LayoutParams(dp(280), dp(280)).apply { topMargin = dp(12) })
-        root.addView(caption)
+        val zh = java.util.Locale.getDefault().language.startsWith("zh")
+        fun t(z: String, e: String) = if (zh) z else e
+
+        // ---- 新手教程（首页）----
+        tutorialBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        val dot = View(this).apply {
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.parseColor("#FF1B1B")) }
+        }
+        tutorialBox.addView(dot, LinearLayout.LayoutParams(dp(96), dp(96)).apply { topMargin = dp(24); bottomMargin = dp(24) })
+        tutorialBox.addView(TextView(this).apply {
+            text = t("现在开始", "Get started"); textSize = 24f; typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
+        })
+        tutorialBox.addView(TextView(this).apply {
+            text = t(
+                "在「相册」（Photos / Gallery）里\n选择想分享的图片或视频\n\n然后点「分享」\n\n再点击这个红点 🔴",
+                "Open Photos / Gallery and\npick the photos or videos to share\n\nTap Share\n\nThen tap this red dot 🔴"
+            )
+            textSize = 19f; gravity = Gravity.CENTER; setLineSpacing(0f, 1.25f); setPadding(0, dp(20), 0, dp(28))
+        })
+        tutorialBox.addView(Button(this).apply {
+            text = t("iPhone 还没连同一个 Wi-Fi？点这里", "iPhone not on the same Wi-Fi? Tap here")
+            isAllCaps = false
+            setOnClickListener { mode = 1; updateMode() }
+        })
+
+        // ---- 二维码区域 ----
+        mainBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        mainBox.addView(info); mainBox.addView(status); mainBox.addView(row); mainBox.addView(wifiBox)
+        mainBox.addView(qrView, LinearLayout.LayoutParams(dp(280), dp(280)).apply { topMargin = dp(12) })
+        mainBox.addView(caption)
+
+        root.addView(title); root.addView(tutorialBox); root.addView(mainBox)
         setContentView(ScrollView(this).apply { addView(root) })
     }
 
     private fun updateMode() {
+        tutorialBox.visibility = if (mode == 0) View.VISIBLE else View.GONE
+        mainBox.visibility = if (mode == 0) View.GONE else View.VISIBLE
+        if (mode == 0) return
         btn1.isEnabled = mode != 1
         btn2.isEnabled = mode != 2
         wifiBox.visibility = if (mode == 1) View.VISIBLE else View.GONE
-        if (mode == 1) autoFillSsid()
         refreshQr()
     }
 
@@ -301,26 +335,6 @@ class MainActivity : Activity() {
         } catch (_: Exception) {
         }
         return fallback
-    }
-
-    private fun autoFillSsid() {
-        if (ssidEt.text.isNotEmpty()) return
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
-            return
-        }
-        try {
-            val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            @Suppress("DEPRECATION")
-            val ssid = wm.connectionInfo?.ssid?.trim('"')
-            if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>") ssidEt.setText(ssid)
-        } catch (_: Exception) {
-        }
-    }
-
-    override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, res: IntArray) {
-        super.onRequestPermissionsResult(code, perms, res)
-        if (mode == 1) autoFillSsid()
     }
 
     private fun saveWifi() {

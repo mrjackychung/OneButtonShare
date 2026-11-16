@@ -17,6 +17,7 @@ import android.provider.OpenableColumns
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.*
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
@@ -137,20 +138,50 @@ class MainActivity : Activity() {
         fun t(z: String, e: String) = if (zh) z else e
 
         // ---- 新手教程（首页）----
-        tutorialBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-        val dot = View(this).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.parseColor("#FF1B1B")) }
+        val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
+        val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
+        fun stepCard(n: Int, label: String, res: Int): LinearLayout {
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(16).toFloat()
+                    setColor(Color.parseColor("#F5F5F7"))
+                    setStroke(dp(1), Color.parseColor("#DDDDDD"))
+                }
+                setPadding(dp(14), dp(14), dp(14), dp(14))
+            }
+            val rowL = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            val num = TextView(this).apply {
+                this.text = n.toString(); setTextColor(Color.WHITE); textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.parseColor("#FF1B1B")) }
+            }
+            rowL.addView(num, LinearLayout.LayoutParams(dp(36), dp(36)))
+            rowL.addView(TextView(this).apply {
+                this.text = label; textSize = 17f; setPadding(dp(12), 0, 0, 0)
+            }, LinearLayout.LayoutParams(0, WRAP, 1f))
+            card.addView(rowL)
+            card.addView(ImageView(this).apply { setImageResource(res) },
+                LinearLayout.LayoutParams(WRAP, WRAP).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(10) })
+            return card
         }
-        tutorialBox.addView(dot, LinearLayout.LayoutParams(dp(96), dp(96)).apply { topMargin = dp(24); bottomMargin = dp(24) })
+
+        tutorialBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         tutorialBox.addView(TextView(this).apply {
-            text = t("现在开始", "Get started"); textSize = 24f; typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
+            text = t("现在开始 👇", "Get started 👇"); textSize = 24f; typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, dp(12), 0, dp(4))
         })
+        val gap = { LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(12) } }
+        tutorialBox.addView(stepCard(1,
+            t("打开「相册」（Photos / Gallery），选择想分享的图片或视频", "Open Photos / Gallery and select the photos or videos to share"),
+            R.drawable.ic_step1_gallery), gap())
+        tutorialBox.addView(stepCard(2, t("点「分享」", "Tap Share"), R.drawable.ic_step2_share), gap())
+        tutorialBox.addView(stepCard(3,
+            t("在分享列表里，点红点「发送到iPhone」", "In the share list, tap the red dot “Send to iPhone”"),
+            R.drawable.ic_step3_dot), gap())
         tutorialBox.addView(TextView(this).apply {
-            text = t(
-                "在「相册」（Photos / Gallery）里\n选择想分享的图片或视频\n\n然后点「分享」\n\n再点击这个红点 🔴",
-                "Open Photos / Gallery and\npick the photos or videos to share\n\nTap Share\n\nThen tap this red dot 🔴"
-            )
-            textSize = 19f; gravity = Gravity.CENTER; setLineSpacing(0f, 1.25f); setPadding(0, dp(20), 0, dp(28))
+            text = t("然后用 iPhone 扫描出现的二维码即可。", "Then scan the QR code that appears with your iPhone.")
+            textSize = 15f; setTextColor(Color.GRAY); gravity = Gravity.CENTER; setPadding(0, dp(14), 0, dp(10))
         })
         tutorialBox.addView(Button(this).apply {
             text = t("iPhone 还没连同一个 Wi-Fi？点这里", "iPhone not on the same Wi-Fi? Tap here")
@@ -165,6 +196,10 @@ class MainActivity : Activity() {
         mainBox.addView(caption)
 
         root.addView(title); root.addView(tutorialBox); root.addView(mainBox)
+        root.addView(Button(this).apply {
+            text = t("关闭应用", "Close app")
+            setOnClickListener { finishAndRemoveTask() }
+        }, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(20) })
         setContentView(ScrollView(this).apply { addView(root) })
     }
 

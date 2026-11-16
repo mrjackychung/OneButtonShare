@@ -17,6 +17,9 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.widget.*
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -49,12 +52,36 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         buildUi()
+        publishShareShortcut()
         val sp = getSharedPreferences("wifi", Context.MODE_PRIVATE)
         pwdEt.setText(sp.getString("pwd", ""))
         ssidEt.setText(sp.getString("ssid", ""))
         handleIntent(intent)
         if (items.isEmpty()) mode = 1
         updateMode()
+    }
+
+    /** 发布“直接分享”快捷方式：让本应用以红点图标出现在系统分享面板最前面的一排。 */
+    private fun publishShareShortcut() {
+        try {
+            val size = 192
+            val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val c = android.graphics.Canvas(bmp)
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+            paint.color = Color.parseColor("#FF1B1B")
+            c.drawCircle(size / 2f, size / 2f, size / 2f - 4f, paint)
+            val sc = ShortcutInfoCompat.Builder(this, "send_to_iphone")
+                .setShortLabel("发送到iPhone")
+                .setLongLabel("发送到iPhone（二维码）")
+                .setIcon(IconCompat.createWithBitmap(bmp))
+                .setCategories(setOf("com.example.phoneshare.category.SHARE_TARGET"))
+                .setLongLived(true)
+                .setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_SEND))
+                .setRank(0)
+                .build()
+            ShortcutManagerCompat.pushDynamicShortcut(this, sc)
+        } catch (_: Exception) {
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

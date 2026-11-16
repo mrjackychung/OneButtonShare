@@ -183,11 +183,6 @@ class MainActivity : Activity() {
             text = t("然后用 iPhone 扫描出现的二维码即可。", "Then scan the QR code that appears with your iPhone.")
             textSize = 15f; setTextColor(Color.GRAY); gravity = Gravity.CENTER; setPadding(0, dp(14), 0, dp(10))
         })
-        tutorialBox.addView(Button(this).apply {
-            text = t("iPhone 还没连同一个 Wi-Fi？点这里", "iPhone not on the same Wi-Fi? Tap here")
-            isAllCaps = false
-            setOnClickListener { mode = 1; updateMode() }
-        })
 
         // ---- 二维码区域 ----
         mainBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }

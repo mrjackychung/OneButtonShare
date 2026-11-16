@@ -105,9 +105,25 @@ private val MORE = mapOf(
 )
 
 private val SC_INSTALL = mapOf(
-    "en" to "Install the shortcut (one time)",
-    "zh-Hans" to "安装快捷指令（只需一次）",
-    "zh-Hant" to "安裝捷徑（只需一次）"
+    "en" to "First time? Tap here to install the shortcut (one time)",
+    "zh-Hans" to "第一次使用？点这里安装快捷指令（只需一次）",
+    "zh-Hant" to "第一次使用？點這裡安裝捷徑（只需一次）",
+    "ja" to "初回はここをタップしてショートカットを追加（1回のみ）",
+    "ko" to "처음이신가요? 여기를 눌러 단축어 설치 (1회)",
+    "es" to "¿Primera vez? Toca aquí para instalar el atajo (una sola vez)",
+    "fr" to "Première fois ? Touchez ici pour installer le raccourci (une seule fois)",
+    "de" to "Erstes Mal? Hier tippen, um den Kurzbefehl zu installieren (einmalig)"
+)
+
+private val SC_SAVE = mapOf(
+    "en" to "⭐ Save all to Photos",
+    "zh-Hans" to "⭐ 一键存入相册",
+    "zh-Hant" to "⭐ 一鍵存入相簿",
+    "ja" to "⭐ すべて写真に保存",
+    "ko" to "⭐ 모두 사진에 저장",
+    "es" to "⭐ Guardar todo en Fotos",
+    "fr" to "⭐ Tout enregistrer dans Photos",
+    "de" to "⭐ Alle in Fotos sichern"
 )
 
 /** iOS“快捷指令”一键存入相册：按钮文字 + 帮助页 */
@@ -239,8 +255,9 @@ h2{margin:8px 0}.tip{background:#fff3cd;border:1px solid #ffe08a;border-radius:1
 .adv{margin:10px 0}summary{color:#007aff;font-size:15px;padding:8px 0}
 .top{display:flex;justify-content:space-between;align-items:center}
 select{font-size:14px;padding:4px;border-radius:6px}
-.all{display:block;width:100%;box-sizing:border-box;text-align:center;background:#34c759;color:#fff;
- font-size:20px;font-weight:700;padding:18px 12px;border-radius:14px;text-decoration:none;margin:10px 0 6px}
+.all{display:block;width:100%;box-sizing:border-box;text-align:center;background:#007aff;color:#fff;
+ font-size:18px;font-weight:700;padding:18px 12px;border-radius:14px;text-decoration:none;margin:10px 0 6px}
+.main{display:block;width:100%;box-sizing:border-box;text-align:center;background:#34c759;color:#fff;font-size:24px;font-weight:700;padding:24px 12px;border-radius:16px;text-decoration:none;margin:12px 0 6px}
 .hint{color:#666;font-size:12px;text-align:center;margin-bottom:10px}
 .sc{display:block;box-sizing:border-box;text-align:center;background:#ff9500;color:#fff;font-size:17px;font-weight:700;padding:14px 12px;border-radius:14px;text-decoration:none;margin:14px 0 6px}
 .c{background:#fff;border-radius:12px;padding:10px;margin-bottom:14px}
@@ -257,17 +274,15 @@ img{width:100%;border-radius:8px;display:block}
             sb.append("<option value=\"$k\"${if (k == lang) " selected" else ""}>$v</option>")
         }
         sb.append("</select></div>\n")
-        sb.append("<div class=\"tip\">👆 ${esc(s.tip)}</div>\n")
-        sb.append("<a class=\"all\" href=\"#\" onclick=\"dlAll();return false\">${esc(s.dlAll.format(n))}</a>\n")
-        sb.append("<div class=\"hint\">${esc(s.dlAllHint)}</div>\n")
-        val sc = SC_BTN[lang] ?: SC_BTN.getValue("en")
         val scUrl = "shortcuts://run-shortcut?name=SaveFromAndroid&input=text&text=" +
             URLEncoder.encode("http://$host/", "UTF-8")
-        sb.append("<details class=\"adv\"><summary>${esc(MORE[lang] ?: "More options")}</summary>\n")
+        sb.append("<a class=\"main\" href=\"$scUrl\">${esc(SC_SAVE[lang] ?: SC_SAVE.getValue("en"))}</a>\n")
         if (SHORTCUT_ICLOUD_URL.isNotEmpty())
-            sb.append("<a class=\"sc\" style=\"background:#5856d6\" href=\"$SHORTCUT_ICLOUD_URL\">${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}</a>\n")
-        sb.append("<a class=\"sc\" href=\"$scUrl\">${esc(sc.first)}</a>\n")
-        sb.append("<div class=\"hint\"><a href=\"/help?lang=$lang\">${esc(sc.second)}</a></div></details>\n")
+            sb.append("<div class=\"hint\"><a href=\"$SHORTCUT_ICLOUD_URL\">${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}</a></div>\n")
+        sb.append("<div class=\"tip\">👆 ${esc(s.tip)}</div>\n")
+        sb.append("<details class=\"adv\"><summary>${esc(MORE[lang] ?: "More options")}</summary>\n")
+        sb.append("<a class=\"all\" href=\"#\" onclick=\"dlAll();return false\">${esc(s.dlAll.format(n))}</a>\n")
+        sb.append("<div class=\"hint\">${esc(s.dlAllHint)}</div></details>\n")
         items.forEachIndexed { i, it ->
             sb.append("<div class=\"c\">")
             if (it.mime.startsWith("video/")) sb.append("<div class=\"v\">🎬</div>")

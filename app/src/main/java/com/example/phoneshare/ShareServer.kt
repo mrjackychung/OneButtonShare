@@ -41,56 +41,56 @@ private val STRINGS = mapOf(
     "en" to Strs(
         "%d file(s) from Android",
         "Tap a photo to open it, then long-press and choose “Add to Photos”.",
-        "⬇ Download all (%d)",
+        "⬇ Download all, one by one (%d)",
         "Files download one by one. If Safari asks, tap Download / Allow.",
         "Download"
     ),
     "zh-Hans" to Strs(
         "来自安卓的 %d 个文件",
         "点开照片后长按图片，选择“添加到照片”。",
-        "⬇ 一键下载全部（%d 个）",
+        "⬇ 逐个下载全部（%d 个）",
         "将逐个依次下载。如果 Safari 弹出询问，请点“下载”或“允许”。",
         "下载"
     ),
     "zh-Hant" to Strs(
         "來自 Android 的 %d 個檔案",
         "點開照片後長按圖片，選擇「加入照片」。",
-        "⬇ 一鍵下載全部（%d 個）",
+        "⬇ 逐個下載全部（%d 個）",
         "將逐個依序下載。如果 Safari 彈出詢問，請點「下載」或「允許」。",
         "下載"
     ),
     "ja" to Strs(
         "Android からのファイル %d 件",
         "写真をタップして開き、長押しして「“写真”に追加」を選択。",
-        "⬇ すべてダウンロード（%d 件）",
+        "⬇ すべてを1つずつダウンロード（%d 件）",
         "1つずつ順番にダウンロードされます。Safari で確認が出たら「ダウンロード」を選んでください。",
         "ダウンロード"
     ),
     "ko" to Strs(
         "Android에서 보낸 파일 %d개",
         "사진을 탭해 연 다음 길게 눌러 “사진에 추가”를 선택하세요.",
-        "⬇ 전체 다운로드 (%d개)",
+        "⬇ 전체를 하나씩 다운로드 (%d개)",
         "하나씩 차례로 다운로드됩니다. Safari에서 묻으면 “다운로드”를 누르세요.",
         "다운로드"
     ),
     "es" to Strs(
         "%d archivo(s) desde Android",
         "Toca una foto para abrirla, mantenla pulsada y elige “Añadir a Fotos”.",
-        "⬇ Descargar todo (%d)",
+        "⬇ Descargar todo, uno por uno (%d)",
         "Se descargan uno por uno. Si Safari pregunta, toca Descargar.",
         "Descargar"
     ),
     "fr" to Strs(
         "%d fichier(s) depuis Android",
         "Touchez une photo, appuyez longuement puis « Ajouter à Photos ».",
-        "⬇ Tout télécharger (%d)",
+        "⬇ Tout télécharger, un par un (%d)",
         "Les fichiers se téléchargent un par un. Si Safari demande, touchez Télécharger.",
         "Télécharger"
     ),
     "de" to Strs(
         "%d Datei(en) von Android",
         "Foto antippen, gedrückt halten und „Zu Fotos hinzufügen“ wählen.",
-        "⬇ Alle laden (%d)",
+        "⬇ Alle einzeln laden (%d)",
         "Die Dateien werden nacheinander geladen. Wenn Safari fragt, „Laden“ tippen.",
         "Laden"
     )
@@ -293,7 +293,6 @@ img{width:100%;border-radius:8px;display:block}
         sb.append("<a class=\"main\" href=\"$scUrl\">${esc(SC_SAVE[lang] ?: SC_SAVE.getValue("en"))}</a>\n")
         if (SHORTCUT_ICLOUD_URL.isNotEmpty())
             sb.append("<div class=\"hint\"><a href=\"$SHORTCUT_ICLOUD_URL\">${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}</a></div>\n")
-        sb.append("<div class=\"tip\">👆 ${esc(s.tip)}</div>\n")
         sb.append("<details class=\"adv\"><summary>${esc(MORE[lang] ?: "More options")}</summary>\n")
         sb.append("<a class=\"all\" href=\"#\" onclick=\"dlAll();return false\">${esc(s.dlAll.format(n))}</a>\n")
         sb.append("<div class=\"hint\">${esc(s.dlAllHint)}</div></details>\n")

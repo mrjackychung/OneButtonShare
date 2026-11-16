@@ -216,8 +216,15 @@ class MainActivity : Activity() {
             t("在分享列表里，点红点「OneButtonShare」", "In the share list, tap the red dot “OneButtonShare”"),
             R.drawable.ic_step3_dot), gap())
         tutorialBox.addView(TextView(this).apply {
-            text = t("然后用 iPhone 扫描出现的二维码即可。", "Then scan the QR code that appears with your iPhone.")
+            text = t("然后用 iPhone 扫描出现的二维码即可。*", "Then scan the QR code that appears with your iPhone.*")
             textSize = 15f; setTextColor(Color.GRAY); gravity = Gravity.CENTER; setPadding(0, dp(14), 0, dp(10))
+        })
+        tutorialBox.addView(TextView(this).apply {
+            text = t(
+                "* 为什么需要「附近设备」权限？Android 系统规定，开启热点、读取当前 Wi-Fi 名称都必须有这个权限（部分手机显示为「位置信息」）。本应用只用它让 iPhone 扫码加入，不会记录你的位置，也不会把任何数据上传到互联网。",
+                "* Why “Nearby devices”? Android requires this permission to start a hotspot and read the current Wi-Fi name (some phones label it “Location”). This app only uses it so your iPhone can join by scanning a QR code. It doesn’t record your location or upload any data to the internet."
+            )
+            textSize = 12f; setTextColor(Color.GRAY); setLineSpacing(0f, 1.2f); setPadding(0, 0, 0, dp(8))
         })
 
         // ---- 二维码区域 ----

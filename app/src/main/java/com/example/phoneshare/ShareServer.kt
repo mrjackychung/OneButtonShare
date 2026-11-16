@@ -96,6 +96,20 @@ private val STRINGS = mapOf(
     )
 )
 
+/** 若填入快捷指令的 iCloud 分享链接（https://www.icloud.com/shortcuts/...），页面会显示“安装快捷指令”按钮。 */
+private const val SHORTCUT_ICLOUD_URL = ""
+
+private val MORE = mapOf(
+    "en" to "More options", "zh-Hans" to "更多方式", "zh-Hant" to "更多方式", "ja" to "その他の方法",
+    "ko" to "더 보기", "es" to "Más opciones", "fr" to "Plus d’options", "de" to "Mehr Optionen"
+)
+
+private val SC_INSTALL = mapOf(
+    "en" to "Install the shortcut (one time)",
+    "zh-Hans" to "安装快捷指令（只需一次）",
+    "zh-Hant" to "安裝捷徑（只需一次）"
+)
+
 /** iOS“快捷指令”一键存入相册：按钮文字 + 帮助页 */
 private val SC_BTN = mapOf(
     "en" to Pair("⭐ Save all to Photos (no confirmations)", "First time? One-time setup (2 min)"),
@@ -221,7 +235,8 @@ class ShareServer(
 <title>${esc(s.title.format(n))}</title>
 <style>
 body{font-family:-apple-system,sans-serif;margin:0;padding:12px;background:#f2f2f7;color:#111}
-h2{margin:8px 0}.tip{color:#555;font-size:14px;margin:8px 0 14px}
+h2{margin:8px 0}.tip{background:#fff3cd;border:1px solid #ffe08a;border-radius:12px;padding:12px;font-size:17px;font-weight:600;margin:10px 0}
+.adv{margin:10px 0}summary{color:#007aff;font-size:15px;padding:8px 0}
 .top{display:flex;justify-content:space-between;align-items:center}
 select{font-size:14px;padding:4px;border-radius:6px}
 .all{display:block;width:100%;box-sizing:border-box;text-align:center;background:#34c759;color:#fff;
@@ -242,14 +257,17 @@ img{width:100%;border-radius:8px;display:block}
             sb.append("<option value=\"$k\"${if (k == lang) " selected" else ""}>$v</option>")
         }
         sb.append("</select></div>\n")
+        sb.append("<div class=\"tip\">👆 ${esc(s.tip)}</div>\n")
         sb.append("<a class=\"all\" href=\"#\" onclick=\"dlAll();return false\">${esc(s.dlAll.format(n))}</a>\n")
         sb.append("<div class=\"hint\">${esc(s.dlAllHint)}</div>\n")
         val sc = SC_BTN[lang] ?: SC_BTN.getValue("en")
         val scUrl = "shortcuts://run-shortcut?name=SaveFromAndroid&input=text&text=" +
             URLEncoder.encode("http://$host/", "UTF-8")
+        sb.append("<details class=\"adv\"><summary>${esc(MORE[lang] ?: "More options")}</summary>\n")
+        if (SHORTCUT_ICLOUD_URL.isNotEmpty())
+            sb.append("<a class=\"sc\" style=\"background:#5856d6\" href=\"$SHORTCUT_ICLOUD_URL\">${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}</a>\n")
         sb.append("<a class=\"sc\" href=\"$scUrl\">${esc(sc.first)}</a>\n")
-        sb.append("<div class=\"hint\"><a href=\"/help?lang=$lang\">${esc(sc.second)}</a></div>\n")
-        sb.append("<div class=\"tip\">${esc(s.tip)}</div>\n")
+        sb.append("<div class=\"hint\"><a href=\"/help?lang=$lang\">${esc(sc.second)}</a></div></details>\n")
         items.forEachIndexed { i, it ->
             sb.append("<div class=\"c\">")
             if (it.mime.startsWith("video/")) sb.append("<div class=\"v\">🎬</div>")

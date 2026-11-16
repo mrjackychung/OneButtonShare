@@ -74,8 +74,8 @@ class MainActivity : Activity() {
             paint.color = Color.parseColor("#FF1B1B")
             c.drawCircle(size / 2f, size / 2f, size / 2f - 4f, paint)
             val sc = ShortcutInfoCompat.Builder(this, "send_to_iphone")
-                .setShortLabel("发送到iPhone")
-                .setLongLabel("发送到iPhone（二维码）")
+                .setShortLabel("OneButtonShare")
+                .setLongLabel("OneButtonShare")
                 .setIcon(IconCompat.createWithBitmap(bmp))
                 .setCategories(setOf("com.example.phoneshare.category.SHARE_TARGET"))
                 .setLongLived(true)
@@ -106,7 +106,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_HORIZONTAL
         }
         val title = TextView(this).apply {
-            text = "发送到 iPhone"
+            text = "OneButtonShare"
             textSize = 22f
             typeface = Typeface.DEFAULT_BOLD
         }
@@ -177,7 +177,7 @@ class MainActivity : Activity() {
             R.drawable.ic_step1_gallery), gap())
         tutorialBox.addView(stepCard(2, t("点「分享」", "Tap Share"), R.drawable.ic_step2_share), gap())
         tutorialBox.addView(stepCard(3,
-            t("在分享列表里，点红点「发送到iPhone」", "In the share list, tap the red dot “Send to iPhone”"),
+            t("在分享列表里，点红点「OneButtonShare」", "In the share list, tap the red dot “OneButtonShare”"),
             R.drawable.ic_step3_dot), gap())
         tutorialBox.addView(TextView(this).apply {
             text = t("然后用 iPhone 扫描出现的二维码即可。", "Then scan the QR code that appears with your iPhone.")

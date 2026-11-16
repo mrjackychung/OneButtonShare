@@ -34,6 +34,8 @@ class MainActivity : Activity() {
     private var mode = 2 // 1 = Wi-Fi 二维码, 2 = 传输照片二维码
 
     private lateinit var info: TextView
+    private lateinit var status: TextView
+    private val downloaded = mutableSetOf<Int>()
     private lateinit var caption: TextView
     private lateinit var qrView: ImageView
     private lateinit var wifiBox: LinearLayout
@@ -80,6 +82,10 @@ class MainActivity : Activity() {
         }
         info = TextView(this).apply { textSize = 14f; setPadding(0, dp(6), 0, dp(10)) }
 
+        status = TextView(this).apply {
+            textSize = 18f; typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(10))
+        }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         btn1 = Button(this).apply { text = "① 加入Wi-Fi"; setOnClickListener { mode = 1; updateMode() } }
         btn2 = Button(this).apply { text = "② 传输照片"; setOnClickListener { mode = 2; updateMode() } }
@@ -98,7 +104,7 @@ class MainActivity : Activity() {
         qrView = ImageView(this).apply { setBackgroundColor(Color.WHITE) }
         caption = TextView(this).apply { textSize = 14f; gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) }
 
-        root.addView(title); root.addView(info); root.addView(row); root.addView(wifiBox)
+        root.addView(title); root.addView(info); root.addView(status); root.addView(row); root.addView(wifiBox)
         root.addView(qrView, LinearLayout.LayoutParams(dp(280), dp(280)).apply { topMargin = dp(12) })
         root.addView(caption)
         setContentView(ScrollView(this).apply { addView(root) })
@@ -180,15 +186,47 @@ class MainActivity : Activity() {
     } catch (_: Exception) { null }
 
     private fun startServer() {
+        downloaded.clear()
+        status.text = ""
         server?.stop(); server = null
         for (port in 8088..8097) {
             try {
-                val s = ShareServer(port, items, zipFile)
+                val s = ShareServer(port, items, zipFile) { kind, idx -> onServerEvent(kind, idx) }
                 s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
                 server = s
                 break
             } catch (_: IOException) {
             }
+        }
+    }
+
+    // ---------------- iPhone 下载状态 ----------------
+    private fun onServerEvent(kind: String, idx: Int) = runOnUiThread {
+        when (kind) {
+            "open" -> if (downloaded.isEmpty() && !status.text.startsWith("✅")) {
+                status.setTextColor(Color.parseColor("#007aff"))
+                status.text = "📱 iPhone 已连接，正在查看"
+            }
+            "zip" -> allDone()
+            "file" -> {
+                downloaded.add(idx)
+                if (downloaded.size >= items.size) allDone()
+                else {
+                    status.setTextColor(Color.parseColor("#007aff"))
+                    status.text = "⬇ iPhone 已下载 ${downloaded.size}/${items.size} 张"
+                }
+            }
+        }
+    }
+
+    private fun allDone() {
+        status.setTextColor(Color.parseColor("#1a9c3e"))
+        status.text = "✅ iPhone 已下载完成！"
+        Toast.makeText(this, "✅ iPhone 已下载完成", Toast.LENGTH_LONG).show()
+        try {
+            @Suppress("DEPRECATION")
+            (getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator).vibrate(400)
+        } catch (_: Exception) {
         }
     }
 

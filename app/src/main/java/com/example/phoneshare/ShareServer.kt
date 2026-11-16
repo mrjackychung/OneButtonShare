@@ -6,9 +6,28 @@ import fi.iki.elonen.NanoHTTPD.Response
 import fi.iki.elonen.NanoHTTPD.Response.Status
 import java.io.File
 import java.io.FileInputStream
+import java.io.InputStream
 import java.net.URLEncoder
 
 data class ShareItem(val file: File, val name: String, val mime: String)
+
+/** 统计已发送字节，发送完毕（达到总长度）时回调一次。 */
+class TrackingStream(
+    private val inner: InputStream,
+    private val total: Long,
+    private val onDone: () -> Unit
+) : InputStream() {
+    private var sent = 0L
+    private var fired = false
+    private fun add(n: Int) {
+        if (n > 0) sent += n
+        if (!fired && (n < 0 || sent >= total)) { fired = true; onDone() }
+    }
+    override fun read(): Int { val r = inner.read(); add(if (r < 0) -1 else 1); return r }
+    override fun read(b: ByteArray, off: Int, len: Int): Int { val r = inner.read(b, off, len); add(r); return r }
+    override fun available() = inner.available()
+    override fun close() = inner.close()
+}
 
 private class Strs(
     val title: String,   // %d = count
@@ -99,17 +118,24 @@ private fun pickLang(header: String?, override: String?): String {
     }
 }
 
-class ShareServer(port: Int, private val items: List<ShareItem>, private val zip: File?) : NanoHTTPD(port) {
+class ShareServer(
+    port: Int,
+    private val items: List<ShareItem>,
+    private val zip: File?,
+    private val listener: (kind: String, index: Int) -> Unit
+) : NanoHTTPD(port) {
 
     override fun serve(session: IHTTPSession): Response {
         val uri = session.uri
         if (uri == "/" || uri.isEmpty()) {
+            listener("open", -1)
             val lang = pickLang(session.headers["accept-language"], session.parms["lang"])
             return page(lang)
         }
         if (uri == "/all.zip" && zip != null && zip.exists()) {
             val res = NanoHTTPD.newFixedLengthResponse(
-                Status.OK, "application/zip", FileInputStream(zip), zip.length()
+                Status.OK, "application/zip",
+                TrackingStream(FileInputStream(zip), zip.length()) { listener("zip", -1) }, zip.length()
             )
             res.addHeader("Content-Disposition", "attachment; filename=\"photos.zip\"")
             return res
@@ -118,9 +144,11 @@ class ShareServer(port: Int, private val items: List<ShareItem>, private val zip
             val idx = uri.removePrefix("/f/").toIntOrNull()
             val item = idx?.let { items.getOrNull(it) }
                 ?: return NanoHTTPD.newFixedLengthResponse(Status.NOT_FOUND, "text/plain", "Not found")
-            val res = NanoHTTPD.newFixedLengthResponse(
-                Status.OK, item.mime, FileInputStream(item.file), item.file.length()
-            )
+            val isDl = session.parms["dl"] == "1"
+            val raw = FileInputStream(item.file)
+            val stream: InputStream =
+                if (isDl) TrackingStream(raw, item.file.length()) { listener("file", idx) } else raw
+            val res = NanoHTTPD.newFixedLengthResponse(Status.OK, item.mime, stream, item.file.length())
             val enc = URLEncoder.encode(item.name, "UTF-8").replace("+", "%20")
             val dispo = if (session.parms["dl"] == "1") "attachment" else "inline"
             res.addHeader("Content-Disposition", "$dispo; filename*=UTF-8''$enc")

@@ -376,7 +376,7 @@ class MainActivity : Activity() {
             ss != null -> {
                 val pw = hsPwd
                 val text = if (pw.isNullOrEmpty()) "WIFI:T:nopass;S:${wifiEsc(ss)};;"
-                else "WIFI:T:WPA;S:${wifiEsc(ss)};P:${wifiEsc(pw)};;"
+                else "WIFI:T:${if (HotspotHolder.security == 3) "SAE" else "WPA"};S:${wifiEsc(ss)};P:${wifiEsc(pw)};;"
                 qrView.setImageBitmap(makeQr(text))
                 caption.text = t(
                     "用 iPhone 相机扫描，点“加入网络”。\n（iPhone 提示“无法连接互联网”是正常的）\n加入后点下面的“下一步”。\n如果 iPhone 已和本机在同一个 Wi-Fi，直接点“下一步”。\n\n热点：$ss${if (pw.isNullOrEmpty()) "" else "\n密码：$pw"}",
@@ -386,6 +386,13 @@ class MainActivity : Activity() {
                     "⏳ 正在等待 iPhone 加入…加入后会自动进入下一步。\n（没有自动跳转的话，请手动点“下一步”）",
                     "⏳ Waiting for the iPhone to join… the next step opens automatically.\n(If nothing happens, tap Next yourself.)"
                 )
+                val secLabel = when (HotspotHolder.security) {
+                    0 -> "Open"; 1 -> "WPA2"; 2 -> "WPA2/WPA3"; 3 -> "WPA3"; 4, 5 -> "OWE"; else -> "?"
+                }
+                val bandLabel = when (HotspotHolder.band) {
+                    1 -> "2.4GHz"; 2 -> "5GHz"; 4 -> "6GHz"; 0 -> "auto"; else -> "?"
+                }
+                caption.text = caption.text.toString() + "\n\n[$secLabel · $bandLabel · Android ${Build.VERSION.RELEASE}]"
             }
             hsError != null -> {
                 qrView.setImageBitmap(null)

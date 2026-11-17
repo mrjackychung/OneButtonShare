@@ -105,32 +105,43 @@ private val MORE = mapOf(
 )
 
 private val SC_INSTALL = mapOf(
-    "en" to "First time? Tap here to add a shortcut called SaveFromAndroid. You can delete it anytime in the Shortcuts app.",
-    "zh-Hans" to "第一次使用？点这里添加名为 SaveFromAndroid 的快捷指令，随时可在「快捷指令」App 中删除。",
-    "zh-Hant" to "第一次使用？點這裡加入名為 SaveFromAndroid 的捷徑，隨時可在「捷徑」App 中刪除。",
-    "ja" to "初回はここをタップして SaveFromAndroid というショートカットを追加します。ショートカットアプリでいつでも削除できます。",
-    "ko" to "처음이신가요? 여기를 눌러 SaveFromAndroid 단축어를 추가하세요. 단축어 앱에서 언제든 삭제할 수 있습니다.",
-    "es" to "¿Primera vez? Toca aquí para añadir el atajo SaveFromAndroid. Puedes eliminarlo cuando quieras en la app Atajos.",
-    "fr" to "Première fois ? Touchez ici pour ajouter le raccourci SaveFromAndroid. Vous pouvez le supprimer à tout moment dans l’app Raccourcis.",
-    "de" to "Erstes Mal? Hier tippen, um den Kurzbefehl SaveFromAndroid hinzuzufügen. Du kannst ihn jederzeit in der Kurzbefehle-App löschen."
+    "en" to "Adds a shortcut named SaveFromAndroid to your Shortcuts app. You can delete it anytime (Shortcuts app → touch and hold → Delete).",
+    "zh-Hans" to "会在你的「快捷指令」App 里添加一个名为 SaveFromAndroid 的快捷指令，随时可以删除（快捷指令 App → 长按 → 删除）。",
+    "zh-Hant" to "會在你的「捷徑」App 裡加入一個名為 SaveFromAndroid 的捷徑，隨時可以刪除（捷徑 App → 長按 → 刪除）。",
+    "ja" to "「ショートカット」アプリに SaveFromAndroid というショートカットが追加されます。いつでも削除できます（ショートカット → 長押し → 削除）。",
+    "ko" to "“단축어” 앱에 SaveFromAndroid 단축어가 추가됩니다. 언제든 삭제할 수 있습니다 (단축어 앱 → 길게 누르기 → 삭제).",
+    "es" to "Se añadirá un atajo llamado SaveFromAndroid a la app Atajos. Puedes eliminarlo cuando quieras (Atajos → mantén pulsado → Eliminar).",
+    "fr" to "Un raccourci nommé SaveFromAndroid sera ajouté à l’app Raccourcis. Vous pouvez le supprimer à tout moment (Raccourcis → appui long → Supprimer).",
+    "de" to "Es wird ein Kurzbefehl namens SaveFromAndroid in der Kurzbefehle-App hinzugefügt. Du kannst ihn jederzeit löschen (Kurzbefehle → gedrückt halten → Löschen)."
+)
+
+private val SC_STEP1 = mapOf(
+    "en" to "① Add the shortcut (first time only)",
+    "zh-Hans" to "① 添加快捷指令（仅第一次）",
+    "zh-Hant" to "① 加入捷徑（僅第一次）",
+    "ja" to "① ショートカットを追加（初回のみ）",
+    "ko" to "① 단축어 추가 (처음 한 번만)",
+    "es" to "① Añadir el atajo (solo la primera vez)",
+    "fr" to "① Ajouter le raccourci (première fois seulement)",
+    "de" to "① Kurzbefehl hinzufügen (nur beim ersten Mal)"
 )
 
 private val SC_SAVE = mapOf(
-    "en" to "⭐ Save all to Photos",
-    "zh-Hans" to "⭐ 一键存入相册",
-    "zh-Hant" to "⭐ 一鍵存入相簿",
-    "ja" to "⭐ すべて写真に保存",
-    "ko" to "⭐ 모두 사진에 저장",
-    "es" to "⭐ Guardar todo en Fotos",
-    "fr" to "⭐ Tout enregistrer dans Photos",
-    "de" to "⭐ Alle in Fotos sichern"
+    "en" to "② Save all to Photos",
+    "zh-Hans" to "② 一键存入相册",
+    "zh-Hant" to "② 一鍵存入相簿",
+    "ja" to "② すべて写真に保存",
+    "ko" to "② 모두 사진에 저장",
+    "es" to "② Guardar todo en Fotos",
+    "fr" to "② Tout enregistrer dans Photos",
+    "de" to "② Alle in Fotos sichern"
 )
 
 /** iOS“快捷指令”一键存入相册：按钮文字 + 帮助页 */
 private val SC_BTN = mapOf(
-    "en" to Pair("⭐ Save all to Photos (no confirmations)", "First time? One-time setup (2 min)"),
-    "zh-Hans" to Pair("⭐ 一键存入相册（无需逐个确认）", "第一次使用？查看一次性设置（约 2 分钟）"),
-    "zh-Hant" to Pair("⭐ 一鍵存入相簿（無需逐個確認）", "第一次使用？查看一次性設定（約 2 分鐘）")
+    "en" to Pair("② Save all to Photos (no confirmations)", "First time? One-time setup (2 min)"),
+    "zh-Hans" to Pair("② 一键存入相册（无需逐个确认）", "第一次使用？查看一次性设置（约 2 分钟）"),
+    "zh-Hant" to Pair("② 一鍵存入相簿（無需逐個確認）", "第一次使用？查看一次性設定（約 2 分鐘）")
 )
 
 private val SC_HELP = mapOf(
@@ -293,10 +304,11 @@ img{width:100%;border-radius:8px;display:block}
         sb.append("</select></div>\n")
         val scUrl = "shortcuts://run-shortcut?name=SaveFromAndroid&input=text&text=" +
             URLEncoder.encode("http://$host/", "UTF-8")
-        sb.append("<a class=\"main\" href=\"$scUrl\">${esc(SC_SAVE[lang] ?: SC_SAVE.getValue("en"))}</a>\n")
         if (SHORTCUT_ICLOUD_URL.isNotEmpty()) {
-            sb.append("<div class=\"hint\"><a href=\"$SHORTCUT_ICLOUD_URL\">${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}</a></div>\n")
+            sb.append("<a class=\"sc\" style=\"background:#5856d6\" href=\"$SHORTCUT_ICLOUD_URL\">${esc(SC_STEP1[lang] ?: SC_STEP1.getValue("en"))}</a>\n")
+            sb.append("<div class=\"hint\">${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}</div>\n")
         }
+        sb.append("<a class=\"main\" href=\"$scUrl\">${esc(SC_SAVE[lang] ?: SC_SAVE.getValue("en"))}</a>\n")
         sb.append("<details class=\"adv\"><summary>${esc(MORE[lang] ?: "More options")}</summary>\n")
         sb.append("<a class=\"all\" href=\"#\" onclick=\"dlAll();return false\">${esc(s.dlAll.format(n))}</a>\n")
         sb.append("<div class=\"hint\">${esc(s.dlAllHint)}</div></details>\n")

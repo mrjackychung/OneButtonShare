@@ -57,7 +57,6 @@ class MainActivity : Activity() {
     private lateinit var srcBtnHot: Button
     private lateinit var srcBtnWifi: Button
     private lateinit var nextBtn: Button
-    private lateinit var scModeCb: CheckBox
 
     // 手机热点（LocalOnlyHotspot）
     private var srcHotspot = true
@@ -253,19 +252,6 @@ class MainActivity : Activity() {
         mainBox.addView(info); mainBox.addView(status); mainBox.addView(row); mainBox.addView(wifiBox)
         mainBox.addView(qrView, LinearLayout.LayoutParams(dp(280), dp(280)).apply { topMargin = dp(12) })
         mainBox.addView(caption)
-        scModeCb = CheckBox(this).apply {
-            text = t(
-                "⚡ 快捷模式：iPhone 已装好快捷指令，扫码后直接存入「照片」",
-                "⚡ Shortcut mode: my iPhone already has the shortcut — scan to save straight to Photos"
-            )
-            textSize = 14f
-            isChecked = getSharedPreferences("wifi", Context.MODE_PRIVATE).getBoolean("sc", false)
-            setOnCheckedChangeListener { _, checked ->
-                getSharedPreferences("wifi", Context.MODE_PRIVATE).edit().putBoolean("sc", checked).apply()
-                refreshQr()
-            }
-        }
-        mainBox.addView(scModeCb, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
         nextBtn = Button(this).apply {
             text = t("iPhone 已加入 → 下一步", "iPhone joined → Next"); isAllCaps = false
             setOnClickListener { mode = 2; updateMode() }
@@ -288,7 +274,6 @@ class MainActivity : Activity() {
         btn2.isEnabled = mode != 2
         wifiBox.visibility = if (mode == 1) View.VISIBLE else View.GONE
         nextBtn.visibility = if (mode == 1) View.VISIBLE else View.GONE
-        scModeCb.visibility = if (mode == 2) View.VISIBLE else View.GONE
         updateSourceUi()
         if (mode == 1 && srcHotspot) startHotspot() else refreshQr()
     }
@@ -562,7 +547,7 @@ class MainActivity : Activity() {
                 ip == null -> { qrView.setImageBitmap(null); caption.text = t("未检测到局域网地址，请连接 Wi-Fi 或开启热点。", "No local network found. Connect to Wi-Fi or turn on your hotspot.") }
                 else -> {
                     val url = "http://$ip:${s.listeningPort}/"
-                    val sc = scModeCb.isChecked
+                    val sc = false
                     val qrText = if (sc) "shortcuts://run-shortcut?name=SaveFromAndroid&input=text&text=" +
                         URLEncoder.encode(url, "UTF-8") else url
                     qrView.setImageBitmap(makeQr(qrText))
@@ -570,7 +555,8 @@ class MainActivity : Activity() {
                         t("iPhone 相机扫码 → 在「快捷指令」中打开，照片会直接存入「照片」。\n（传输期间请保持本应用在前台）",
                             "Scan with your iPhone camera → open in Shortcuts. Photos are saved straight to Photos.\n(Keep this app open while transferring)")
                     else
-                        t("iPhone 相机扫码打开：\n$url\n（传输期间请保持本应用在前台）", "Scan with your iPhone camera:\n$url\n(Keep this app open while transferring)")
+                        t("iPhone 相机扫码打开：\n$url\n\niPhone 上：先点 ① 添加快捷指令（仅第一次），再点 ② 存入相册。\n（传输期间请保持本应用在前台）",
+                            "Scan with your iPhone camera:\n$url\n\nOn the iPhone: tap ① to add the shortcut (first time only), then ② to save to Photos.\n(Keep this app open while transferring)")
                     if (ip.startsWith("172.20.10."))
                         caption.text = t(
                             "✅ 已加入 iPhone 的热点。\n请在 iPhone 上点「继续」开始接收。\n\n",

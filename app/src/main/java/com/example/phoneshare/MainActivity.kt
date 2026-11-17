@@ -478,7 +478,7 @@ class MainActivity : Activity() {
                 items.clear(); items.addAll(list)
                 info.text = t("已就绪：${list.size} 个文件", "Ready: ${list.size} file(s)")
                 startServer()
-                mode = 1
+                mode = if (localIp()?.startsWith("172.20.10.") == true) 2 else 1
                 updateMode()
             }
         }.start()
@@ -571,6 +571,11 @@ class MainActivity : Activity() {
                             "Scan with your iPhone camera → open in Shortcuts. Photos are saved straight to Photos.\n(Keep this app open while transferring)")
                     else
                         t("iPhone 相机扫码打开：\n$url\n（传输期间请保持本应用在前台）", "Scan with your iPhone camera:\n$url\n(Keep this app open while transferring)")
+                    if (ip.startsWith("172.20.10."))
+                        caption.text = t(
+                            "✅ 已加入 iPhone 的热点。\n请在 iPhone 上点「继续」开始接收。\n\n",
+                            "✅ Joined the iPhone’s hotspot.\nOn the iPhone, tap “Continue” to start receiving.\n\n"
+                        ) + caption.text
                     info.text = t("已就绪：${items.size} 个文件", "Ready: ${items.size} file(s)")
                 }
             }

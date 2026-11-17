@@ -61,10 +61,18 @@ class MainActivity : Activity() {
 
     // 手机热点（LocalOnlyHotspot）
     private var srcHotspot = true
-    private var hotspot: WifiManager.LocalOnlyHotspotReservation? = null
-    private var hsSsid: String? = null
-    private var hsPwd: String? = null
-    private var hsStarting = false
+    private var hotspot: WifiManager.LocalOnlyHotspotReservation?
+        get() = HotspotHolder.reservation
+        set(v) { HotspotHolder.reservation = v }
+    private var hsSsid: String?
+        get() = HotspotHolder.ssid
+        set(v) { HotspotHolder.ssid = v }
+    private var hsPwd: String?
+        get() = HotspotHolder.pwd
+        set(v) { HotspotHolder.pwd = v }
+    private var hsStarting: Boolean
+        get() = HotspotHolder.starting
+        set(v) { HotspotHolder.starting = v }
     private var hsError: String? = null
     private var permPending = false
     private var hsRetried = false
@@ -79,6 +87,8 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         buildUi()
+        HotspotHolder.count++
+        HotspotHolder.onEvent = { ev -> handleHotspotEvent(ev) }
         publishShareShortcut()
         val sp = getSharedPreferences("wifi", Context.MODE_PRIVATE)
         pwdEt.setText(sp.getString("pwd", ""))
@@ -123,7 +133,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         server?.stop()
-        stopHotspot()
+        HotspotHolder.count--
+        if (HotspotHolder.count <= 0) { stopHotspot(); HotspotHolder.onEvent = null }
         super.onDestroy()
     }
 
@@ -264,7 +275,7 @@ class MainActivity : Activity() {
         root.addView(title); root.addView(tutorialBox); root.addView(mainBox)
         root.addView(Button(this).apply {
             text = t("关闭应用", "Close app")
-            setOnClickListener { finishAndRemoveTask() }
+            setOnClickListener { stopHotspot(); finishAndRemoveTask() }
         }, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(20) })
         setContentView(ScrollView(this).apply { addView(root) })
     }
@@ -313,60 +324,40 @@ class MainActivity : Activity() {
         hsStarting = true; hsError = null; hsSsid = null; hsPwd = null
         refreshQr()
         Handler(Looper.getMainLooper()).postDelayed({
-            if (hsStarting) {
-                hsStarting = false
-                fallbackToWifi(t("热点开启超时。", "Starting the hotspot timed out."))
+            if (hsStarting && hotspot == null && srcHotspot) {
+                fallbackToWifi(t("热点开启超时。", "Starting the hotspot timed out."), keepRequest = true)
             }
         }, 10000)
         try {
             val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            wm.startLocalOnlyHotspot(object : WifiManager.LocalOnlyHotspotCallback() {
-                override fun onStarted(reservation: WifiManager.LocalOnlyHotspotReservation) {
-                    hotspot = reservation
-                    hsStarting = false
-                    try {
-                        if (Build.VERSION.SDK_INT >= 30) {
-                            val c = reservation.softApConfiguration
-                            @Suppress("DEPRECATION")
-                            hsSsid = c.ssid?.trim('"')
-                            hsPwd = c.passphrase
-                        } else {
-                            @Suppress("DEPRECATION")
-                            val wc = reservation.wifiConfiguration
-                            hsSsid = wc?.SSID?.trim('"')
-                            hsPwd = wc?.preSharedKey?.trim('"')
-                        }
-                    } catch (_: Exception) {
-                    }
-                    if (hsSsid == null) fallbackToWifi(t("无法读取热点名称。", "Couldn’t read the hotspot name."))
-                    else if (mode == 1) refreshQr()
-                }
-
-                override fun onStopped() {
-                    hotspot = null; hsSsid = null; hsPwd = null; hsStarting = false
-                }
-
-                override fun onFailed(reason: Int) {
-                    hsStarting = false
-                    fallbackToWifi(t("无法自动开启热点（错误码 $reason）。", "Couldn’t start the hotspot (code $reason)."))
-                }
-            }, Handler(Looper.getMainLooper()))
+            wm.startLocalOnlyHotspot(HotspotHolder.callback, Handler(Looper.getMainLooper()))
         } catch (e: Exception) {
             hsStarting = false
-            if (e is IllegalStateException && !hsRetried) {
-                hsRetried = true
-                Handler(Looper.getMainLooper()).postDelayed({ startHotspot() }, 1500)
-                return
-            }
-            hsRetried = false
             val detail = "${e.javaClass.simpleName}: ${e.message}"
-            fallbackToWifi(t("无法自动开启热点（$detail）", "Couldn’t start the hotspot ($detail)"))
+            fallbackToWifi(
+                t("无法自动开启热点（$detail）。请完全关闭本应用后重试。",
+                    "Couldn’t start the hotspot ($detail). Please fully close the app and try again.")
+            )
+        }
+    }
+
+    private fun handleHotspotEvent(ev: String) {
+        when {
+            ev == "started" -> {
+                if (!srcHotspot) stopHotspot()
+                else if (hsSsid == null) fallbackToWifi(t("无法读取热点名称。", "Couldn’t read the hotspot name."))
+                else if (mode == 1) refreshQr()
+            }
+            ev.startsWith("failed") -> {
+                val code = ev.substringAfter(':')
+                if (srcHotspot) fallbackToWifi(t("无法自动开启热点（错误码 $code）。", "Couldn’t start the hotspot (code $code)."))
+            }
         }
     }
 
     private fun stopHotspot() {
         try { hotspot?.close() } catch (_: Exception) {}
-        hotspot = null; hsSsid = null; hsPwd = null; hsStarting = false; hsError = null
+        hotspot = null; hsSsid = null; hsPwd = null; hsError = null
     }
 
     private fun hotspotPermOk(): Boolean {
@@ -398,8 +389,8 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun fallbackToWifi(msg: String) {
-        stopHotspot()
+    private fun fallbackToWifi(msg: String, keepRequest: Boolean = false) {
+        if (!keepRequest) stopHotspot()
         Toast.makeText(this, msg + "\n" + t("已切换到「我的 Wi-Fi」。", "Switched to “My Wi-Fi”."), Toast.LENGTH_LONG).show()
         setSource(false)
         info.text = msg

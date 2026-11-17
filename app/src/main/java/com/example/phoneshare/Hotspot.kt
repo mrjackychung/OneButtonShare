@@ -14,7 +14,6 @@ object HotspotHolder {
     var pwd: String? = null
     var starting = false
     var security = -1
-    var band = -1
     var count = 0
     var onEvent: ((String) -> Unit)? = null
 
@@ -29,11 +28,6 @@ object HotspotHolder {
                     ssid = c.ssid?.trim('"')
                     pwd = c.passphrase
                     security = c.securityType
-                    try {
-                        @Suppress("DEPRECATION")
-                        band = c.band
-                    } catch (_: Throwable) {
-                    }
                 } else {
                     @Suppress("DEPRECATION")
                     val wc = r.wifiConfiguration

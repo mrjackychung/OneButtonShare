@@ -389,10 +389,7 @@ class MainActivity : Activity() {
                 val secLabel = when (HotspotHolder.security) {
                     0 -> "Open"; 1 -> "WPA2"; 2 -> "WPA2/WPA3"; 3 -> "WPA3"; 4, 5 -> "OWE"; else -> "?"
                 }
-                val bandLabel = when (HotspotHolder.band) {
-                    1 -> "2.4GHz"; 2 -> "5GHz"; 4 -> "6GHz"; 0 -> "auto"; else -> "?"
-                }
-                caption.text = caption.text.toString() + "\n\n[$secLabel · $bandLabel · Android ${Build.VERSION.RELEASE}]"
+                caption.text = caption.text.toString() + "\n\n[$secLabel · Android ${Build.VERSION.RELEASE}]"
             }
             hsError != null -> {
                 qrView.setImageBitmap(null)

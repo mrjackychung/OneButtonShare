@@ -74,6 +74,7 @@ class MainActivity : Activity() {
         set(v) { HotspotHolder.starting = v }
     private var hsError: String? = null
     private var permPending = false
+    private var watcher: JoinWatcher? = null
     private var hsRetried = false
     private var wifiReady = false
 
@@ -132,6 +133,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         server?.stop()
+        watcher?.stop()
         HotspotHolder.count--
         if (HotspotHolder.count <= 0) { stopHotspot(); HotspotHolder.onEvent = null }
         super.onDestroy()
@@ -293,7 +295,7 @@ class MainActivity : Activity() {
     }
 
     private fun startHotspot() {
-        if (hotspot != null) { refreshQr(); return }
+        if (hotspot != null) { refreshQr(); if (mode == 1) startWatching(); return }
         if (hsStarting) return
         val perm = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES
         else Manifest.permission.ACCESS_FINE_LOCATION
@@ -326,12 +328,37 @@ class MainActivity : Activity() {
         }
     }
 
+    /** 热点开启后，监听是否有 iPhone 加入，加入后自动进入下一步。 */
+    private fun startWatching(attempt: Int = 0) {
+        val ip = localIp()
+        if (ip == null) {
+            if (attempt < 10) Handler(Looper.getMainLooper()).postDelayed({ startWatching(attempt + 1) }, 1000)
+            return
+        }
+        watcher?.stop()
+        watcher = JoinWatcher(this) { src -> runOnUiThread { onIphoneJoined(src) } }.also { it.start(ip) }
+    }
+
+    private fun onIphoneJoined(src: String) {
+        watcher?.stop(); watcher = null
+        if (mode == 1 && srcHotspot) {
+            Toast.makeText(this, t("📱 iPhone 已加入热点", "📱 iPhone joined the hotspot"), Toast.LENGTH_LONG).show()
+            try {
+                @Suppress("DEPRECATION")
+                (getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator).vibrate(300)
+            } catch (_: Exception) {
+            }
+            mode = 2
+            updateMode()
+        }
+    }
+
     private fun handleHotspotEvent(ev: String) {
         when {
             ev == "started" -> {
                 if (!srcHotspot) stopHotspot()
                 else if (hsSsid == null) fallbackToWifi(t("无法读取热点名称。", "Couldn’t read the hotspot name."))
-                else if (mode == 1) refreshQr()
+                else if (mode == 1) { refreshQr(); startWatching() }
             }
             ev.startsWith("failed") -> {
                 val code = ev.substringAfter(':')
@@ -341,6 +368,7 @@ class MainActivity : Activity() {
     }
 
     private fun stopHotspot() {
+        watcher?.stop(); watcher = null
         try { hotspot?.close() } catch (_: Exception) {}
         hotspot = null; hsSsid = null; hsPwd = null; hsError = null
     }
@@ -404,6 +432,10 @@ class MainActivity : Activity() {
                 caption.text = t(
                     "用 iPhone 相机扫描，点“加入网络”。\n（iPhone 提示“无法连接互联网”是正常的）\n加入后点下面的“下一步”。\n如果 iPhone 已和本机在同一个 Wi-Fi，直接点“下一步”。\n\n热点：$ss${if (pw.isNullOrEmpty()) "" else "\n密码：$pw"}",
                     "Scan with your iPhone camera and tap “Join Network”.\n(“No Internet Connection” on iPhone is normal.)\nThen tap Next below.\nIf your iPhone is already on the same Wi-Fi, just tap Next.\n\nHotspot: $ss${if (pw.isNullOrEmpty()) "" else "\nPassword: $pw"}"
+                )
+                caption.text = caption.text.toString() + "\n\n" + t(
+                    "⏳ 正在等待 iPhone 加入…加入后会自动进入下一步。\n（没有自动跳转的话，请手动点“下一步”）",
+                    "⏳ Waiting for the iPhone to join… the next step opens automatically.\n(If nothing happens, tap Next yourself.)"
                 )
             }
             hsError != null -> {

@@ -97,7 +97,7 @@ private val STRINGS = mapOf(
 )
 
 /** 若填入快捷指令的 iCloud 分享链接（https://www.icloud.com/shortcuts/...），页面会显示“安装快捷指令”按钮。 */
-private const val SHORTCUT_ICLOUD_URL = "https://www.icloud.com/shortcuts/a6ba1218b460469aab24a8771b1e2f05"
+private const val SHORTCUT_ICLOUD_URL = "https://www.icloud.com/shortcuts/a7e66990e0544ba1b9e4363029b01894"
 
 private val MORE = mapOf(
     "en" to "More options", "zh-Hans" to "更多方式", "zh-Hant" to "更多方式", "ja" to "その他の方法",

@@ -47,19 +47,13 @@ class MainActivity : Activity() {
     private lateinit var caption: TextView
     private lateinit var qrView: ImageView
     private lateinit var wifiBox: LinearLayout
-    private lateinit var ssidEt: EditText
-    private lateinit var pwdEt: EditText
     private lateinit var btn1: Button
     private lateinit var btn2: Button
     private lateinit var tutorialBox: LinearLayout
     private lateinit var mainBox: LinearLayout
-    private lateinit var fieldsBox: LinearLayout
-    private lateinit var srcBtnHot: Button
-    private lateinit var srcBtnWifi: Button
     private lateinit var nextBtn: Button
 
     // 手机热点（LocalOnlyHotspot）
-    private var srcHotspot = true
     private var hotspot: WifiManager.LocalOnlyHotspotReservation?
         get() = HotspotHolder.reservation
         set(v) { HotspotHolder.reservation = v }
@@ -75,8 +69,6 @@ class MainActivity : Activity() {
     private var hsError: String? = null
     private var permPending = false
     private var watcher: JoinWatcher? = null
-    private var hsRetried = false
-    private var wifiReady = false
 
     /** 系统语言为中文显示中文，其余显示英文。 */
     private fun t(z: String, e: String): String =
@@ -90,12 +82,6 @@ class MainActivity : Activity() {
         HotspotHolder.count++
         HotspotHolder.onEvent = { ev -> handleHotspotEvent(ev) }
         publishShareShortcut()
-        val sp = getSharedPreferences("wifi", Context.MODE_PRIVATE)
-        pwdEt.setText(sp.getString("pwd", ""))
-        ssidEt.setText(sp.getString("ssid", ""))
-        srcHotspot = sp.getBoolean("hot", true)
-        wifiReady = !ssidEt.text.isNullOrEmpty() && !pwdEt.text.isNullOrEmpty()
-        updateSourceUi()
         handleIntent(intent)
         mode = if (items.isEmpty()) 0 else 2
         updateMode()
@@ -163,33 +149,15 @@ class MainActivity : Activity() {
         row.addView(btn1, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(btn2, LinearLayout.LayoutParams(0, -2, 1f))
 
-        wifiBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val srcRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        srcBtnHot = Button(this).apply {
-            text = t("📶 手机热点（自动）", "📶 Phone hotspot (auto)"); isAllCaps = false
-            setOnClickListener { setSource(true) }
-        }
-        srcBtnWifi = Button(this).apply {
-            text = t("🏠 我的 Wi-Fi", "🏠 My Wi-Fi"); isAllCaps = false
-            setOnClickListener { setSource(false) }
-        }
-        srcRow.addView(srcBtnHot, LinearLayout.LayoutParams(0, -2, 1f))
-        srcRow.addView(srcBtnWifi, LinearLayout.LayoutParams(0, -2, 1f))
-        fieldsBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        ssidEt = EditText(this).apply { hint = t("Wi-Fi 名称（和 iPhone 连的是同一个）", "Wi-Fi name (same as your iPhone)"); setSingleLine() }
-        pwdEt = EditText(this).apply {
-            hint = t("Wi-Fi 密码（无密码留空）", "Wi-Fi password (leave empty if none)"); setSingleLine()
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-        }
-        val gen = Button(this).apply { text = t("生成 Wi-Fi 二维码", "Generate Wi-Fi QR code"); setOnClickListener { saveWifi(); wifiReady = true; refreshQr() } }
-        fieldsBox.addView(Button(this).apply {
-            text = t("打开系统热点设置", "Open hotspot settings"); isAllCaps = false
-            setOnClickListener {
-                try { startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS)) } catch (_: Exception) {}
-            }
+        wifiBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+        wifiBox.addView(Button(this).apply {
+            text = t("🔄 重新开启热点", "🔄 Restart hotspot"); isAllCaps = false
+            setOnClickListener { retryHotspot() }
         })
-        fieldsBox.addView(ssidEt); fieldsBox.addView(pwdEt); fieldsBox.addView(gen)
-        wifiBox.addView(srcRow); wifiBox.addView(fieldsBox)
+        wifiBox.addView(Button(this).apply {
+            text = t("打开系统热点设置", "Open hotspot settings"); isAllCaps = false
+            setOnClickListener { try { startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS)) } catch (_: Exception) {} }
+        })
 
         qrView = ImageView(this).apply { setBackgroundColor(Color.WHITE) }
         caption = TextView(this).apply { textSize = 14f; gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) }
@@ -243,8 +211,8 @@ class MainActivity : Activity() {
         })
         tutorialBox.addView(TextView(this).apply {
             text = t(
-                "* 为什么需要「附近设备」权限？Android 系统规定，开启热点、读取当前 Wi-Fi 名称都必须有这个权限（部分手机显示为「位置信息」）。本应用只用它让 iPhone 扫码加入，不会记录你的位置，也不会把任何数据上传到互联网。",
-                "* Why “Nearby devices”? Android requires this permission to start a hotspot and read the current Wi-Fi name (some phones label it “Location”). This app only uses it so your iPhone can join by scanning a QR code. It doesn’t record your location or upload any data to the internet."
+                "* 为什么需要「附近设备」权限？Android 系统规定，开启热点必须有这个权限（部分手机显示为「位置信息」）。本应用只用它让 iPhone 扫码加入，不会记录你的位置，也不会把任何数据上传到互联网。",
+                "* Why “Nearby devices”? Android requires this permission to start a hotspot (some phones label it “Location”). This app only uses it so your iPhone can join by scanning a QR code. It doesn’t record your location or upload any data to the internet."
             )
             textSize = 12f; setTextColor(Color.GRAY); setLineSpacing(0f, 1.2f); setPadding(0, 0, 0, dp(8))
         })
@@ -274,25 +242,12 @@ class MainActivity : Activity() {
         if (mode == 0) return
         btn1.isEnabled = mode != 1
         btn2.isEnabled = mode != 2
-        wifiBox.visibility = if (mode == 1) View.VISIBLE else View.GONE
+        if (mode != 1) wifiBox.visibility = View.GONE
         nextBtn.visibility = if (mode == 1) View.VISIBLE else View.GONE
-        updateSourceUi()
-        if (mode == 1 && srcHotspot) startHotspot() else refreshQr()
+        if (mode == 1) startHotspot() else refreshQr()
     }
 
-    // ---------------- 手机热点 / Wi-Fi 来源 ----------------
-    private fun updateSourceUi() {
-        srcBtnHot.isEnabled = !srcHotspot
-        srcBtnWifi.isEnabled = srcHotspot
-        fieldsBox.visibility = if (srcHotspot) View.GONE else View.VISIBLE
-    }
-
-    private fun setSource(hot: Boolean) {
-        srcHotspot = hot
-        getSharedPreferences("wifi", Context.MODE_PRIVATE).edit().putBoolean("hot", hot).apply()
-        updateSourceUi()
-        if (hot) startHotspot() else { stopHotspot(); autoFillSsid(); refreshQr() }
-    }
+    // ---------------- 手机热点 ----------------
 
     private fun startHotspot() {
         if (hotspot != null) { refreshQr(); if (mode == 1) startWatching(); return }
@@ -311,8 +266,8 @@ class MainActivity : Activity() {
         hsStarting = true; hsError = null; hsSsid = null; hsPwd = null
         refreshQr()
         Handler(Looper.getMainLooper()).postDelayed({
-            if (hsStarting && hotspot == null && srcHotspot) {
-                fallbackToWifi(t("热点开启超时。", "Starting the hotspot timed out."), keepRequest = true)
+            if (hsStarting && hotspot == null) {
+                hotspotFailed(t("热点开启超时。", "Starting the hotspot timed out."), keepRequest = true)
             }
         }, 10000)
         try {
@@ -321,7 +276,7 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             hsStarting = false
             val detail = "${e.javaClass.simpleName}: ${e.message}"
-            fallbackToWifi(
+            hotspotFailed(
                 t("无法自动开启热点（$detail）。请完全关闭本应用后重试。",
                     "Couldn’t start the hotspot ($detail). Please fully close the app and try again.")
             )
@@ -341,7 +296,7 @@ class MainActivity : Activity() {
 
     private fun onIphoneJoined(src: String) {
         watcher?.stop(); watcher = null
-        if (mode == 1 && srcHotspot) {
+        if (mode == 1) {
             Toast.makeText(this, t("📱 iPhone 已加入热点", "📱 iPhone joined the hotspot"), Toast.LENGTH_LONG).show()
             try {
                 @Suppress("DEPRECATION")
@@ -356,13 +311,13 @@ class MainActivity : Activity() {
     private fun handleHotspotEvent(ev: String) {
         when {
             ev == "started" -> {
-                if (!srcHotspot) stopHotspot()
-                else if (hsSsid == null) fallbackToWifi(t("无法读取热点名称。", "Couldn’t read the hotspot name."))
+                hsError = null
+                if (hsSsid == null) hotspotFailed(t("无法读取热点名称。", "Couldn’t read the hotspot name."))
                 else if (mode == 1) { refreshQr(); startWatching() }
             }
             ev.startsWith("failed") -> {
                 val code = ev.substringAfter(':')
-                if (srcHotspot) fallbackToWifi(t("无法自动开启热点（错误码 $code）。", "Couldn’t start the hotspot (code $code)."))
+                hotspotFailed(t("无法自动开启热点（错误码 $code）。", "Couldn’t start the hotspot (code $code)."))
             }
         }
     }
@@ -379,50 +334,44 @@ class MainActivity : Activity() {
         return checkSelfPermission(perm) == PackageManager.PERMISSION_GRANTED
     }
 
-    /** 首次打开时一次性请求权限：热点 + 自动读取当前 Wi-Fi 名称。 */
+    /** 首次打开时请求开启热点所需的权限。 */
     private fun askStartupPermissions() {
         val sp = getSharedPreferences("wifi", Context.MODE_PRIVATE)
-        val list = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
-        if (Build.VERSION.SDK_INT >= 33) list.add(Manifest.permission.NEARBY_WIFI_DEVICES)
-        val need = list.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-        if (need.isEmpty() || sp.getBoolean("perm_asked", false) || permPending) { autoFillSsid(); return }
+        val perm = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES
+        else Manifest.permission.ACCESS_FINE_LOCATION
+        if (hotspotPermOk() || sp.getBoolean("perm_asked", false) || permPending) return
         sp.edit().putBoolean("perm_asked", true).apply()
         permPending = true
-        requestPermissions(need.toTypedArray(), 7)
+        requestPermissions(arrayOf(perm), 7)
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         permPending = false
         if (requestCode != 7 || grantResults.isEmpty()) return
-        autoFillSsid()
-        if (mode == 1 && srcHotspot) {
+        if (mode == 1) {
             if (hotspotPermOk()) startHotspot()
-            else fallbackToWifi(t("没有授权，无法开启热点。", "Permission denied, can’t start the hotspot."))
+            else hotspotFailed(t("没有授权，无法开启热点。", "Permission denied, can’t start the hotspot."))
         }
     }
 
-    private fun fallbackToWifi(msg: String, keepRequest: Boolean = false) {
+    private fun hotspotFailed(msg: String, keepRequest: Boolean = false) {
         if (!keepRequest) stopHotspot()
-        Toast.makeText(this, msg + "\n" + t("已切换到「我的 Wi-Fi」。", "Switched to “My Wi-Fi”."), Toast.LENGTH_LONG).show()
-        setSource(false)
-        info.text = msg
+        hsError = msg
+        if (mode == 1) refreshQr()
     }
 
-    private fun autoFillSsid() {
-        if (ssidEt.text.isNotEmpty()) return
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
-        try {
-            val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            @Suppress("DEPRECATION")
-            val ssid = wm.connectionInfo?.ssid?.trim('"')
-            if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>") ssidEt.setText(ssid)
-        } catch (_: Exception) {
-        }
+    private fun retryHotspot() {
+        stopHotspot()
+        if (hsStarting) {
+            Toast.makeText(this, t("系统仍在处理上一次请求，请稍等…", "The system is still handling the previous request, please wait…"), Toast.LENGTH_LONG).show()
+            refreshQr()
+        } else startHotspot()
     }
 
     private fun refreshHotspotQr() {
         val ss = hsSsid
+        wifiBox.visibility = if (ss == null && hsError != null) View.VISIBLE else View.GONE
         when {
             ss != null -> {
                 val pw = hsPwd
@@ -441,8 +390,8 @@ class MainActivity : Activity() {
             hsError != null -> {
                 qrView.setImageBitmap(null)
                 caption.text = hsError + "\n" + t(
-                    "请改用「我的 Wi-Fi」，或在手机设置里手动开启热点。\n提示：Android 12 及以下需要打开「位置信息」。",
-                    "Use “My Wi-Fi” instead, or turn on the hotspot in your phone settings.\nTip: on Android 12 and below, Location must be turned on."
+                    "请点下面「重新开启热点」重试；或在手机系统设置里手动开启热点，再点「下一步」。\n提示：Android 12 及以下需要打开「位置信息」。",
+                    "Tap “Restart hotspot” below to try again, or turn on the hotspot in your phone settings and then tap Next.\nTip: on Android 12 and below, Location must be turned on."
                 )
             }
             else -> {
@@ -554,23 +503,7 @@ class MainActivity : Activity() {
     // ---------------- 二维码 ----------------
     private fun refreshQr() {
         if (mode == 1) {
-            if (srcHotspot) { refreshHotspotQr(); return }
-            val ssid = ssidEt.text.toString()
-            if (ssid.isEmpty()) {
-                qrView.setImageBitmap(null)
-                caption.text = t("请填写 Wi-Fi 名称和密码后点击生成。\niPhone 相机扫码即可加入同一 Wi-Fi。", "Enter the Wi-Fi name and password, then tap Generate.\nScan with your iPhone camera to join the same Wi-Fi.")
-                return
-            }
-            if (!wifiReady) {
-                qrView.setImageBitmap(null)
-                caption.text = t("请确认 Wi-Fi 名称和密码（无密码留空），然后点「生成 Wi-Fi 二维码」。", "Check the Wi-Fi name and password (leave empty if none), then tap Generate.")
-                return
-            }
-            val pwd = pwdEt.text.toString()
-            val text = if (pwd.isEmpty()) "WIFI:T:nopass;S:${wifiEsc(ssid)};;"
-            else "WIFI:T:WPA;S:${wifiEsc(ssid)};P:${wifiEsc(pwd)};;"
-            qrView.setImageBitmap(makeQr(text))
-            caption.text = t("用 iPhone 相机扫描 → 点“加入网络”", "Scan with your iPhone camera → tap “Join Network”")
+            refreshHotspotQr()
         } else {
             val ip = localIp()
             val s = server
@@ -639,9 +572,5 @@ class MainActivity : Activity() {
         return cands.firstOrNull()?.second
     }
 
-    private fun saveWifi() {
-        getSharedPreferences("wifi", Context.MODE_PRIVATE).edit()
-            .putString("ssid", ssidEt.text.toString())
-            .putString("pwd", pwdEt.text.toString()).apply()
-    }
+
 }

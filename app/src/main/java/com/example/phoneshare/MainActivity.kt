@@ -16,6 +16,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -66,6 +67,7 @@ class MainActivity : Activity() {
     private var hsStarting = false
     private var hsError: String? = null
     private var permPending = false
+    private var hsRetried = false
     private var wifiReady = false
 
     /** 系统语言为中文显示中文，其余显示英文。 */
@@ -168,6 +170,12 @@ class MainActivity : Activity() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
         }
         val gen = Button(this).apply { text = t("生成 Wi-Fi 二维码", "Generate Wi-Fi QR code"); setOnClickListener { saveWifi(); wifiReady = true; refreshQr() } }
+        fieldsBox.addView(Button(this).apply {
+            text = t("打开系统热点设置", "Open hotspot settings"); isAllCaps = false
+            setOnClickListener {
+                try { startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS)) } catch (_: Exception) {}
+            }
+        })
         fieldsBox.addView(ssidEt); fieldsBox.addView(pwdEt); fieldsBox.addView(gen)
         wifiBox.addView(srcRow); wifiBox.addView(fieldsBox)
 
@@ -345,7 +353,14 @@ class MainActivity : Activity() {
             }, Handler(Looper.getMainLooper()))
         } catch (e: Exception) {
             hsStarting = false
-            fallbackToWifi(t("无法自动开启热点：${e.javaClass.simpleName}", "Couldn’t start the hotspot: ${e.javaClass.simpleName}"))
+            if (e is IllegalStateException && !hsRetried) {
+                hsRetried = true
+                Handler(Looper.getMainLooper()).postDelayed({ startHotspot() }, 1500)
+                return
+            }
+            hsRetried = false
+            val detail = "${e.javaClass.simpleName}: ${e.message}"
+            fallbackToWifi(t("无法自动开启热点（$detail）", "Couldn’t start the hotspot ($detail)"))
         }
     }
 
@@ -387,6 +402,7 @@ class MainActivity : Activity() {
         stopHotspot()
         Toast.makeText(this, msg + "\n" + t("已切换到「我的 Wi-Fi」。", "Switched to “My Wi-Fi”."), Toast.LENGTH_LONG).show()
         setSource(false)
+        info.text = msg
     }
 
     private fun autoFillSsid() {
@@ -469,6 +485,7 @@ class MainActivity : Activity() {
             }
             runOnUiThread {
                 items.clear(); items.addAll(list)
+                info.text = t("已就绪：${list.size} 个文件", "Ready: ${list.size} file(s)")
                 startServer()
                 mode = 1
                 updateMode()

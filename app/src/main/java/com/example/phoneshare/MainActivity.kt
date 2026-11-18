@@ -233,6 +233,11 @@ class MainActivity : Activity() {
             text = t("关闭应用", "Close app")
             setOnClickListener { stopHotspot(); finishAndRemoveTask() }
         }, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(20) })
+        root.addView(TextView(this).apply {
+            val ver = try { packageManager.getPackageInfo(packageName, 0).versionName } catch (e: Exception) { "?" }
+            text = "OneButtonShare v$ver"
+            textSize = 12f; setTextColor(Color.GRAY); gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0)
+        }, LinearLayout.LayoutParams(MATCH, WRAP))
         setContentView(ScrollView(this).apply { addView(root) })
     }
 

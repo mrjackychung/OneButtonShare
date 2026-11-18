@@ -26,7 +26,7 @@ jobs:
       - name: Build debug APK
         run: |
           set +e
-          gradle assembleDebug --no-daemon --console=plain > build.log 2>&1
+          gradle assembleDebug --no-daemon --console=plain -PrunNumber=${{ github.run_number }} > build.log 2>&1
           code=$?
           if [ $code -ne 0 ]; then
             grep -E "^e: |error:|What went wrong" -A3 build.log | head -40 | while IFS= read -r l; do echo "::error::${l}"; done

@@ -16,12 +16,18 @@ data class ShareItem(val file: File, val name: String, val mime: String, val thu
 class TrackingStream(
     private val inner: InputStream,
     private val total: Long,
-    private val onDone: () -> Unit
+    private val onDone: () -> Unit,
+    private val onProgress: ((Long) -> Unit)? = null
 ) : InputStream() {
     private var sent = 0L
     private var fired = false
+    private var lastP = 0L
     private fun add(n: Int) {
-        if (n > 0) sent += n
+        if (n > 0) {
+            sent += n
+            val now = System.nanoTime()
+            if (onProgress != null && now - lastP > 250_000_000L) { lastP = now; onProgress.invoke(sent) }
+        }
         if (!fired && (n < 0 || sent >= total)) { fired = true; onDone() }
     }
     override fun read(): Int { val r = inner.read(); add(if (r < 0) -1 else 1); return r }
@@ -228,6 +234,7 @@ class ShareServer(
     port: Int,
     private val items: List<ShareItem>,
     private val shortcutAsset: (() -> InputStream)?,
+    private val progress: (index: Int, sent: Long, total: Long) -> Unit,
     private val listener: (kind: String, index: Int) -> Unit
 ) : NanoHTTPD(port) {
 
@@ -282,7 +289,7 @@ class ShareServer(
             val track = isDl || session.parms["s"] == "1"
             val raw = FileInputStream(item.file)
             val stream: InputStream =
-                if (track) TrackingStream(raw, item.file.length()) { listener("file", idx) } else raw
+                if (track) TrackingStream(raw, item.file.length(), { listener("file", idx) }, { sent -> progress(idx!!, sent, item.file.length()) }) else raw
             val res = NanoHTTPD.newFixedLengthResponse(Status.OK, item.mime, stream, item.file.length())
             val enc = URLEncoder.encode(item.name, "UTF-8").replace("+", "%20")
             val dispo = if (isDl) "attachment" else "inline"

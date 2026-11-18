@@ -43,6 +43,11 @@ class MainActivity : Activity() {
 
     private lateinit var info: TextView
     private lateinit var status: TextView
+    private lateinit var progressBar: ProgressBar
+    private val sentBytes = mutableMapOf<Int, Long>()
+    private var spT = 0L
+    private var spB = 0L
+    private var speed = 0.0
     private val downloaded = mutableSetOf<Int>()
     private lateinit var caption: TextView
     private lateinit var qrView: ImageView
@@ -219,7 +224,10 @@ class MainActivity : Activity() {
 
         // ---- 二维码区域 ----
         mainBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-        mainBox.addView(info); mainBox.addView(status); mainBox.addView(row); mainBox.addView(wifiBox)
+        progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000; visibility = View.GONE }
+        mainBox.addView(info); mainBox.addView(status)
+        mainBox.addView(progressBar, LinearLayout.LayoutParams(MATCH, WRAP))
+        mainBox.addView(row); mainBox.addView(wifiBox)
         mainBox.addView(qrView, LinearLayout.LayoutParams(dp(280), dp(280)).apply { topMargin = dp(12) })
         mainBox.addView(caption)
         nextBtn = Button(this).apply {
@@ -442,7 +450,31 @@ class MainActivity : Activity() {
                     val name = queryName(uri) ?: "file_$i"
                     val mime = contentResolver.getType(uri) ?: "application/octet-stream"
                     val f = File(dir, "${i}_" + name.replace('/', '_'))
-                    contentResolver.openInputStream(uri)?.use { ins -> f.outputStream().use { ins.copyTo(it) } }
+                    val size = querySize(uri)
+                    contentResolver.openInputStream(uri)?.use { ins ->
+                        f.outputStream().use { out ->
+                            val buf = ByteArray(256 * 1024)
+                            var done = 0L
+                            var last = 0L
+                            while (true) {
+                                val n = ins.read(buf)
+                                if (n < 0) break
+                                out.write(buf, 0, n)
+                                done += n
+                                val nowMs = System.currentTimeMillis()
+                                if (nowMs - last > 300) {
+                                    last = nowMs
+                                    val d = done
+                                    runOnUiThread {
+                                        info.text = t(
+                                            "正在准备 ${i + 1}/${uris.size}：${formatSize(d)}${if (size > 0) " / " + formatSize(size) else ""}",
+                                            "Preparing ${i + 1}/${uris.size}: ${formatSize(d)}${if (size > 0) " / " + formatSize(size) else ""}"
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                     val tf = File(dir, "t_$i.jpg")
                     val ok = Thumbs.make(f, mime.startsWith("video/"), tf)
                     list.add(ShareItem(f, name, mime, if (ok) tf else null))
@@ -459,6 +491,12 @@ class MainActivity : Activity() {
         }.start()
     }
 
+    private fun querySize(uri: Uri): Long = try {
+        contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use {
+            if (it.moveToFirst() && !it.isNull(0)) it.getLong(0) else -1L
+        } ?: -1L
+    } catch (_: Exception) { -1L }
+
     private fun queryName(uri: Uri): String? = try {
         contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
             if (it.moveToFirst()) it.getString(0) else null
@@ -467,11 +505,13 @@ class MainActivity : Activity() {
 
     private fun startServer() {
         downloaded.clear()
+        sentBytes.clear(); spT = 0L; spB = 0L; speed = 0.0
+        progressBar.visibility = View.GONE; progressBar.progress = 0
         status.text = ""
         server?.stop(); server = null
         for (port in 8088..8097) {
             try {
-                val s = ShareServer(port, items, { assets.open("SaveFromAndroid.shortcut") }) { kind, idx -> onServerEvent(kind, idx) }
+                val s = ShareServer(port, items, { assets.open("SaveFromAndroid.shortcut") }, { i, sent, total -> onProgress(i, sent, total) }) { kind, idx -> onServerEvent(kind, idx) }
                 s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
                 server = s
                 break
@@ -489,16 +529,52 @@ class MainActivity : Activity() {
             }
             "file" -> {
                 downloaded.add(idx)
-                if (downloaded.size >= items.size) allDone()
-                else {
-                    status.setTextColor(Color.parseColor("#007aff"))
-                    status.text = t("⬇ iPhone 已下载 ${downloaded.size}/${items.size} 个", "⬇ iPhone downloaded ${downloaded.size}/${items.size}")
-                }
+                items.getOrNull(idx)?.let { sentBytes[idx] = it.file.length() }
+                if (downloaded.size >= items.size) allDone() else updateTransferUi()
             }
         }
     }
 
+    private fun onProgress(idx: Int, sent: Long, total: Long) = runOnUiThread {
+        sentBytes[idx] = maxOf(sentBytes[idx] ?: 0L, sent)
+        updateTransferUi()
+    }
+
+    private fun formatSize(b: Long): String = when {
+        b >= (1L shl 30) -> "%.2f GB".format(b / 1073741824.0)
+        b >= (1L shl 20) -> "%.1f MB".format(b / 1048576.0)
+        else -> "${b / 1024} KB"
+    }
+
+    private fun fmtEta(sec: Int): String =
+        if (sec < 60) t("${sec} 秒", "${sec}s") else t("${sec / 60} 分 ${sec % 60} 秒", "${sec / 60}m ${sec % 60}s")
+
+    private fun updateTransferUi() {
+        val total = items.sumOf { it.file.length() }
+        if (total <= 0L) return
+        val done = minOf(total, sentBytes.values.sum())
+        val now = System.currentTimeMillis()
+        if (spT == 0L) { spT = now; spB = done }
+        else if (now - spT >= 1000) {
+            val inst = (done - spB) * 1000.0 / (now - spT)
+            speed = if (speed == 0.0) inst else speed * 0.6 + inst * 0.4
+            spT = now; spB = done
+        }
+        progressBar.visibility = View.VISIBLE
+        progressBar.progress = (done * 1000 / total).toInt()
+        val pct = (done * 100 / total).toInt()
+        val eta = if (speed > 1.0) ((total - done) / speed).toInt() else -1
+        val spd = if (speed > 1.0) " · ${formatSize(speed.toLong())}/s" else ""
+        val etaTxt = if (eta >= 0) t(" · 约 ${fmtEta(eta)}", " · ~${fmtEta(eta)} left") else ""
+        status.setTextColor(Color.parseColor("#007aff"))
+        status.text = t(
+            "⬇ iPhone 正在下载 $pct%（已完成 ${downloaded.size}/${items.size} 个）\n${formatSize(done)} / ${formatSize(total)}$spd$etaTxt",
+            "⬇ iPhone downloading $pct% (${downloaded.size}/${items.size} done)\n${formatSize(done)} / ${formatSize(total)}$spd$etaTxt"
+        )
+    }
+
     private fun allDone() {
+        progressBar.progress = 1000
         status.setTextColor(Color.parseColor("#1a9c3e"))
         status.text = t("✅ iPhone 已下载完成！", "✅ iPhone download complete!")
         Toast.makeText(this, t("✅ iPhone 已下载完成", "✅ iPhone download complete"), Toast.LENGTH_LONG).show()

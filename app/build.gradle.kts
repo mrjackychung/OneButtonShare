@@ -20,8 +20,10 @@ android {
         applicationId = "com.example.phoneshare"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // 版本号随 GitHub 编译序号递增：v1.0.N，versionCode = N
+        val runNumber = (project.findProperty("runNumber") as String?)?.toIntOrNull() ?: 1
+        versionCode = runNumber
+        versionName = "1.0.$runNumber"
     }
 
     compileOptions {

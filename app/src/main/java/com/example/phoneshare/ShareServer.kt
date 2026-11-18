@@ -6,6 +6,7 @@ import fi.iki.elonen.NanoHTTPD.Response
 import fi.iki.elonen.NanoHTTPD.Response.Status
 import java.io.File
 import java.io.FileInputStream
+import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.net.URLEncoder
 
@@ -126,6 +127,17 @@ private val SC_NEEDNET = mapOf(
     "de" to "⚠ Internet erforderlich: Mobilfunkdaten einschalten oder vor dem Verbinden mit diesem WLAN hinzufügen."
 )
 
+private val SC_HOWTO = mapOf(
+    "en" to "After it downloads, tap the file (Safari’s download button, top right) and choose “Add Shortcut”.",
+    "zh-Hans" to "下载完成后，点开该文件（Safari 右上角的下载按钮），选择「添加快捷指令」。",
+    "zh-Hant" to "下載完成後，點開該檔案（Safari 右上角的下載按鈕），選擇「加入捷徑」。",
+    "ja" to "ダウンロード後、ファイルをタップ（Safari 右上のダウンロードボタン）して「ショートカットを追加」を選択。",
+    "ko" to "다운로드가 끝나면 파일을 탭(Safari 오른쪽 위 다운로드 버튼)하고 “단축어 추가”를 선택하세요.",
+    "es" to "Tras la descarga, toca el archivo (botón de descargas de Safari) y elige «Añadir atajo».",
+    "fr" to "Une fois téléchargé, touchez le fichier (bouton de téléchargement de Safari) puis « Ajouter le raccourci ».",
+    "de" to "Nach dem Download die Datei antippen (Download-Symbol in Safari) und „Kurzbefehl hinzufügen“ wählen."
+)
+
 private val SC_STEP1 = mapOf(
     "en" to "① Add the shortcut (first time only)",
     "zh-Hans" to "① 添加快捷指令（仅第一次）",
@@ -215,6 +227,7 @@ private fun pickLang(header: String?, override: String?): String {
 class ShareServer(
     port: Int,
     private val items: List<ShareItem>,
+    private val shortcutAsset: (() -> InputStream)?,
     private val listener: (kind: String, index: Int) -> Unit
 ) : NanoHTTPD(port) {
 
@@ -224,6 +237,18 @@ class ShareServer(
             listener("open", -1)
             val lang = pickLang(session.headers["accept-language"], session.parms["lang"])
             return page(lang, session.headers["host"] ?: "")
+        }
+        if (uri == "/SaveFromAndroid.shortcut") {
+            val bytes = try { shortcutAsset?.invoke()?.use { it.readBytes() } } catch (e: Exception) { null }
+            if (bytes != null) {
+                val res = NanoHTTPD.newFixedLengthResponse(
+                    Status.OK, "application/vnd.apple.shortcut", ByteArrayInputStream(bytes), bytes.size.toLong()
+                )
+                res.addHeader("Content-Disposition", "attachment; filename=\"SaveFromAndroid.shortcut\"")
+                res.addHeader("Cache-Control", "no-store")
+                return res
+            }
+            return NanoHTTPD.newFixedLengthResponse(Status.NOT_FOUND, "text/plain", "Not found")
         }
         if (uri == "/list.txt") {
             val host = session.headers["host"] ?: ""
@@ -315,10 +340,8 @@ img{width:100%;border-radius:8px;display:block}
         sb.append("</select></div>\n")
         val scUrl = "shortcuts://run-shortcut?name=SaveFromAndroid&input=text&text=" +
             URLEncoder.encode("http://$host/", "UTF-8")
-        if (SHORTCUT_ICLOUD_URL.isNotEmpty()) {
-            sb.append("<a class=\"sc\" style=\"background:#5856d6\" href=\"$SHORTCUT_ICLOUD_URL\">${esc(SC_STEP1[lang] ?: SC_STEP1.getValue("en"))}</a>\n")
-            sb.append("<div class=\"hint\">${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}<br>${esc(SC_NEEDNET[lang] ?: SC_NEEDNET.getValue("en"))}</div>\n")
-        }
+        sb.append("<a class=\"sc\" style=\"background:#5856d6\" href=\"/SaveFromAndroid.shortcut\">${esc(SC_STEP1[lang] ?: SC_STEP1.getValue("en"))}</a>\n")
+        sb.append("<div class=\"hint\">${esc(SC_HOWTO[lang] ?: SC_HOWTO.getValue("en"))}<br>${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}</div>\n")
         sb.append("<a class=\"main\" href=\"$scUrl\">${esc(SC_SAVE[lang] ?: SC_SAVE.getValue("en"))}</a>\n")
         sb.append("<details class=\"adv\"><summary>${esc(MORE[lang] ?: "More options")}</summary>\n")
         sb.append("<a class=\"all\" href=\"#\" onclick=\"dlAll();return false\">${esc(s.dlAll.format(n))}</a>\n")

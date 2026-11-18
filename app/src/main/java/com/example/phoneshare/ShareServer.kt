@@ -97,7 +97,7 @@ private val STRINGS = mapOf(
 )
 
 /** 若填入快捷指令的 iCloud 分享链接（https://www.icloud.com/shortcuts/...），页面会显示“安装快捷指令”按钮。 */
-private const val SHORTCUT_ICLOUD_URL = "https://www.icloud.com/shortcuts/a7e66990e0544ba1b9e4363029b01894"
+const val SHORTCUT_ICLOUD_URL = "https://www.icloud.com/shortcuts/a7e66990e0544ba1b9e4363029b01894"
 
 private val MORE = mapOf(
     "en" to "More options", "zh-Hans" to "更多方式", "zh-Hant" to "更多方式", "ja" to "その他の方法",
@@ -113,6 +113,17 @@ private val SC_INSTALL = mapOf(
     "es" to "Se añadirá un atajo llamado SaveFromAndroid a la app Atajos. Puedes eliminarlo cuando quieras (Atajos → mantén pulsado → Eliminar).",
     "fr" to "Un raccourci nommé SaveFromAndroid sera ajouté à l’app Raccourcis. Vous pouvez le supprimer à tout moment (Raccourcis → appui long → Supprimer).",
     "de" to "Es wird ein Kurzbefehl namens SaveFromAndroid in der Kurzbefehle-App hinzugefügt. Du kannst ihn jederzeit löschen (Kurzbefehle → gedrückt halten → Löschen)."
+)
+
+private val SC_NEEDNET = mapOf(
+    "en" to "⚠ Needs internet: turn on cellular data, or add it before joining this Wi-Fi.",
+    "zh-Hans" to "⚠ 需要联网：请开启手机流量，或在加入此 Wi-Fi 之前先添加。",
+    "zh-Hant" to "⚠ 需要連網：請開啟行動數據，或在加入此 Wi-Fi 之前先加入。",
+    "ja" to "⚠ インターネット接続が必要です。モバイル通信をオンにするか、このWi-Fiに接続する前に追加してください。",
+    "ko" to "⚠ 인터넷 연결이 필요합니다. 모바일 데이터를 켜거나 이 Wi-Fi에 연결하기 전에 추가하세요.",
+    "es" to "⚠ Requiere internet: activa los datos móviles o añádelo antes de conectarte a este Wi-Fi.",
+    "fr" to "⚠ Nécessite Internet : activez les données mobiles ou ajoutez-le avant de rejoindre ce Wi-Fi.",
+    "de" to "⚠ Internet erforderlich: Mobilfunkdaten einschalten oder vor dem Verbinden mit diesem WLAN hinzufügen."
 )
 
 private val SC_STEP1 = mapOf(
@@ -306,7 +317,7 @@ img{width:100%;border-radius:8px;display:block}
             URLEncoder.encode("http://$host/", "UTF-8")
         if (SHORTCUT_ICLOUD_URL.isNotEmpty()) {
             sb.append("<a class=\"sc\" style=\"background:#5856d6\" href=\"$SHORTCUT_ICLOUD_URL\">${esc(SC_STEP1[lang] ?: SC_STEP1.getValue("en"))}</a>\n")
-            sb.append("<div class=\"hint\">${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}</div>\n")
+            sb.append("<div class=\"hint\">${esc(SC_INSTALL[lang] ?: SC_INSTALL.getValue("en"))}<br>${esc(SC_NEEDNET[lang] ?: SC_NEEDNET.getValue("en"))}</div>\n")
         }
         sb.append("<a class=\"main\" href=\"$scUrl\">${esc(SC_SAVE[lang] ?: SC_SAVE.getValue("en"))}</a>\n")
         sb.append("<details class=\"adv\"><summary>${esc(MORE[lang] ?: "More options")}</summary>\n")

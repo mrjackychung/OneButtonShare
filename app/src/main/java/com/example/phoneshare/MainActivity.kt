@@ -47,6 +47,7 @@ class MainActivity : Activity() {
     private lateinit var caption: TextView
     private lateinit var qrView: ImageView
     private lateinit var wifiBox: LinearLayout
+    private lateinit var btn0: Button
     private lateinit var btn1: Button
     private lateinit var btn2: Button
     private lateinit var tutorialBox: LinearLayout
@@ -144,8 +145,10 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, dp(10))
         }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        btn0 = Button(this).apply { text = t("⓪ 首次", "⓪ Setup"); textSize = 13f; setOnClickListener { mode = 3; updateMode() } }
         btn1 = Button(this).apply { text = t("① 加入Wi-Fi", "① Join Wi-Fi"); setOnClickListener { mode = 1; updateMode() } }
         btn2 = Button(this).apply { text = t("② 传输照片", "② Send photos"); setOnClickListener { mode = if (items.isEmpty()) 0 else 2; updateMode() } }
+        row.addView(btn0, LinearLayout.LayoutParams(0, -2, 0.7f))
         row.addView(btn1, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(btn2, LinearLayout.LayoutParams(0, -2, 1f))
 
@@ -245,6 +248,7 @@ class MainActivity : Activity() {
         tutorialBox.visibility = if (mode == 0) View.VISIBLE else View.GONE
         mainBox.visibility = if (mode == 0) View.GONE else View.VISIBLE
         if (mode == 0) return
+        btn0.isEnabled = mode != 3
         btn1.isEnabled = mode != 1
         btn2.isEnabled = mode != 2
         if (mode != 1) wifiBox.visibility = View.GONE
@@ -391,6 +395,10 @@ class MainActivity : Activity() {
                     "⏳ 正在等待 iPhone 加入…加入后会自动进入下一步。\n（没有自动跳转的话，请手动点“下一步”）",
                     "⏳ Waiting for the iPhone to join… the next step opens automatically.\n(If nothing happens, tap Next yourself.)"
                 )
+                caption.text = caption.text.toString() + "\n\n" + t(
+                    "iPhone 第一次用？先点上面「⓪ 首次」，在有网络时添加快捷指令。",
+                    "First time on iPhone? Tap “⓪ Setup” above first and add the shortcut while it has internet."
+                )
                 val secLabel = when (HotspotHolder.security) {
                     0 -> "Open"; 1 -> "WPA2"; 2 -> "WPA2/WPA3"; 3 -> "WPA3"; 4, 5 -> "OWE"; else -> "?"
                 }
@@ -511,6 +519,14 @@ class MainActivity : Activity() {
 
     // ---------------- 二维码 ----------------
     private fun refreshQr() {
+        if (mode == 3) {
+            qrView.setImageBitmap(makeQr(SHORTCUT_ICLOUD_URL))
+            caption.text = t(
+                "iPhone 第一次使用：请在 iPhone 还有网络时，用相机扫描这个码，点「添加快捷指令」。\n（需要联网。添加完成后，再点上面的「① 加入Wi-Fi」）",
+                "First time on iPhone: while it still has internet, scan this code with the camera and tap “Add Shortcut”.\n(Needs internet. After adding it, tap “① Join Wi-Fi” above.)"
+            )
+            return
+        }
         if (mode == 1) {
             refreshHotspotQr()
         } else {

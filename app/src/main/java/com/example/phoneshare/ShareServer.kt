@@ -423,7 +423,7 @@ class ShareServer(
             try { handle.out.close() } catch (_: Exception) {}
             try { handle.abort() } catch (_: Exception) {}
             r.onEvent(ReceiveEvent("fail", bi, bc, name, 0L, len, bt))
-            plain(Status.INTERNALERROR, "failed")
+            plain(Status.INTERNAL_ERROR, "failed")
         }
     }
 

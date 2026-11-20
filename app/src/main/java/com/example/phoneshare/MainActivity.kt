@@ -2,6 +2,7 @@ package com.example.phoneshare
 
 import android.Manifest
 import android.app.Activity
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,9 +13,11 @@ import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Environment
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.text.InputType
@@ -73,6 +76,17 @@ class MainActivity : Activity() {
         set(v) { HotspotHolder.starting = v }
     private var hsError: String? = null
     private var permPending = false
+
+    // 接收模式（iPhone → 安卓）
+    private var receiveMode = false
+    private var recvToken = ""
+    private var recvDone = 0L
+    private val recvCur = mutableMapOf<Int, Long>()
+    private var recvFiles = 0
+    private var recvFailed = 0
+    private var recvCount = 0
+    private var recvTotal = 0L
+    private lateinit var exitBtn: Button
     private var watcher: JoinWatcher? = null
 
     /** 系统语言为中文显示中文，其余显示英文。 */
@@ -150,7 +164,7 @@ class MainActivity : Activity() {
         }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         btn1 = Button(this).apply { text = t("① 加入Wi-Fi", "① Join Wi-Fi"); setOnClickListener { mode = 1; updateMode() } }
-        btn2 = Button(this).apply { text = t("② 传输照片", "② Send photos"); setOnClickListener { mode = if (items.isEmpty()) 0 else 2; updateMode() } }
+        btn2 = Button(this).apply { text = t("② 传输照片", "② Send photos"); setOnClickListener { mode = if (items.isEmpty() && !receiveMode) 0 else 2; updateMode() } }
         row.addView(btn1, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(btn2, LinearLayout.LayoutParams(0, -2, 1f))
 
@@ -210,6 +224,10 @@ class MainActivity : Activity() {
         tutorialBox.addView(stepCard(3,
             t("在分享列表里，点红点「OneButtonShare」", "In the share list, tap the red dot “OneButtonShare”"),
             R.drawable.ic_step3_dot), gap())
+        tutorialBox.addView(Button(this).apply {
+            text = t("📥 反过来：接收 iPhone 发来的照片", "📥 The other way: receive photos from iPhone"); isAllCaps = false
+            setOnClickListener { startReceiveMode() }
+        }, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(16) })
         tutorialBox.addView(TextView(this).apply {
             text = t("然后用 iPhone 扫描出现的二维码即可。*", "Then scan the QR code that appears with your iPhone.*")
             textSize = 15f; setTextColor(Color.GRAY); gravity = Gravity.CENTER; setPadding(0, dp(14), 0, dp(10))
@@ -235,6 +253,11 @@ class MainActivity : Activity() {
             setOnClickListener { mode = 2; updateMode() }
         }
         mainBox.addView(nextBtn, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(12) })
+        exitBtn = Button(this).apply {
+            text = t("✖ 退出接收模式", "✖ Exit receive mode"); isAllCaps = false
+            setOnClickListener { exitReceiveMode() }
+        }
+        mainBox.addView(exitBtn, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(8) })
 
         root.addView(title); root.addView(tutorialBox); root.addView(mainBox)
         root.addView(Button(this).apply {
@@ -255,6 +278,8 @@ class MainActivity : Activity() {
         if (mode == 0) return
         btn1.isEnabled = mode != 1
         btn2.isEnabled = mode != 2
+        btn2.text = if (receiveMode) t("② 接收照片", "② Receive") else t("② 传输照片", "② Send photos")
+        exitBtn.visibility = if (receiveMode) View.VISIBLE else View.GONE
         if (mode != 1) wifiBox.visibility = View.GONE
         nextBtn.visibility = if (mode == 1) View.VISIBLE else View.GONE
         if (mode == 1) startHotspot() else refreshQr()
@@ -482,6 +507,7 @@ class MainActivity : Activity() {
                 }
             }
             runOnUiThread {
+                receiveMode = false
                 items.clear(); items.addAll(list)
                 info.text = t("已就绪：${list.size} 个文件", "Ready: ${list.size} file(s)")
                 startServer()
@@ -511,8 +537,9 @@ class MainActivity : Activity() {
         server?.stop(); server = null
         for (port in 8088..8097) {
             try {
-                val s = ShareServer(port, items, { assets.open("SaveFromAndroid.shortcut") }, { i, sent, total -> onProgress(i, sent, total) }) { kind, idx -> onServerEvent(kind, idx) }
-                s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+                val rcv = if (receiveMode) Receiver(recvToken, { n, m -> openUpload(n, m) }, { e -> onReceiveEvent(e) }) else null
+                val s = ShareServer(port, items, { assets.open("SaveFromAndroid.shortcut") }, rcv, { i, sent, total -> onProgress(i, sent, total) }) { kind, idx -> onServerEvent(kind, idx) }
+                s.start(30000, false)
                 server = s
                 break
             } catch (_: IOException) {
@@ -532,6 +559,134 @@ class MainActivity : Activity() {
                 items.getOrNull(idx)?.let { sentBytes[idx] = it.file.length() }
                 if (downloaded.size >= items.size) allDone() else updateTransferUi()
             }
+        }
+    }
+
+    // ---------------- 接收模式：iPhone → 安卓 ----------------
+    private fun startReceiveMode() {
+        receiveMode = true
+        recvToken = java.util.UUID.randomUUID().toString().replace("-", "").take(10)
+        items.clear()
+        recvDone = 0L; recvCur.clear(); recvFiles = 0; recvFailed = 0; recvCount = 0; recvTotal = 0L
+        startServer()
+        info.text = t("接收模式：iPhone → 安卓", "Receive mode: iPhone → Android")
+        mode = 1
+        updateMode()
+    }
+
+    private fun exitReceiveMode() {
+        receiveMode = false
+        server?.stop(); server = null
+        stopHotspot()
+        progressBar.visibility = View.GONE
+        status.text = ""
+        mode = 0
+        updateMode()
+    }
+
+    /** 在服务线程里调用：为 iPhone 上传的文件在相册里建一个条目。 */
+    private fun openUpload(name: String, mimeIn: String): UploadHandle? {
+        var mime = mimeIn
+        if (!(mime.startsWith("image/") || mime.startsWith("video/"))) {
+            mime = android.webkit.MimeTypeMap.getSingleton()
+                .getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase()) ?: return null
+            if (!(mime.startsWith("image/") || mime.startsWith("video/"))) return null
+        }
+        val isVideo = mime.startsWith("video/")
+        return try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                val coll = if (isVideo) MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                else MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                val v = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                    put(MediaStore.MediaColumns.RELATIVE_PATH,
+                        (if (isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES) + "/OneButtonShare")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val uri = contentResolver.insert(coll, v) ?: return null
+                val out = contentResolver.openOutputStream(uri) ?: return null
+                UploadHandle(out,
+                    {
+                        val u = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+                        contentResolver.update(uri, u, null, null)
+                    },
+                    { try { contentResolver.delete(uri, null, null) } catch (_: Exception) {} })
+            } else {
+                // Android 9 及以下：保存到应用自己的目录（Android/data/…/files/OneButtonShare）
+                val dir = File(getExternalFilesDir(null), "OneButtonShare"); dir.mkdirs()
+                var f = File(dir, name); var n = 1
+                while (f.exists()) { f = File(dir, "${n++}_$name") }
+                val target = f
+                UploadHandle(target.outputStream(), {}, { target.delete() })
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun onReceiveEvent(e: ReceiveEvent) = runOnUiThread {
+        when (e.type) {
+            "start" -> {
+                if (e.index == 0) {
+                    recvDone = 0L; recvFiles = 0; recvFailed = 0; recvCur.clear()
+                    spT = 0L; spB = 0L; speed = 0.0
+                }
+                recvCount = e.count; recvTotal = e.batchTotal
+                recvCur[e.index] = 0L
+                updateReceiveUi(e.name)
+            }
+            "progress" -> { recvCur[e.index] = e.bytes; updateReceiveUi(e.name) }
+            "done" -> {
+                recvDone += e.size; recvCur.remove(e.index); recvFiles++
+                if (recvFiles + recvFailed >= recvCount) receiveFinished() else updateReceiveUi(e.name)
+            }
+            "fail" -> {
+                recvCur.remove(e.index); recvFailed++
+                if (recvFiles + recvFailed >= recvCount) receiveFinished()
+            }
+        }
+    }
+
+    private fun updateReceiveUi(name: String) {
+        val total = recvTotal
+        if (total <= 0L) return
+        val got = minOf(total, recvDone + recvCur.values.sum())
+        val now = System.currentTimeMillis()
+        if (spT == 0L) { spT = now; spB = got }
+        else if (now - spT >= 1000) {
+            val inst = (got - spB) * 1000.0 / (now - spT)
+            speed = if (speed == 0.0) inst else speed * 0.6 + inst * 0.4
+            spT = now; spB = got
+        }
+        progressBar.visibility = View.VISIBLE
+        progressBar.progress = (got * 1000 / total).toInt()
+        val pct = (got * 100 / total).toInt()
+        val eta = if (speed > 1.0) ((total - got) / speed).toInt() else -1
+        val spd = if (speed > 1.0) " · ${formatSize(speed.toLong())}/s" else ""
+        val etaTxt = if (eta >= 0) t(" · 约 ${fmtEta(eta)}", " · ~${fmtEta(eta)} left") else ""
+        status.setTextColor(Color.parseColor("#007aff"))
+        status.text = t(
+            "📥 正在接收 ${minOf(recvFiles + 1, recvCount)}/$recvCount：$name\n$pct% · ${formatSize(got)} / ${formatSize(total)}$spd$etaTxt",
+            "📥 Receiving ${minOf(recvFiles + 1, recvCount)}/$recvCount: $name\n$pct% · ${formatSize(got)} / ${formatSize(total)}$spd$etaTxt"
+        )
+    }
+
+    private fun receiveFinished() {
+        progressBar.visibility = View.VISIBLE
+        progressBar.progress = 1000
+        if (recvFailed == 0) {
+            status.setTextColor(Color.parseColor("#1a9c3e"))
+            status.text = t("✅ 已收到 $recvFiles 个文件\n保存在相册「OneButtonShare」文件夹", "✅ Received $recvFiles file(s)\nSaved in the “OneButtonShare” album")
+            Toast.makeText(this, t("✅ 已收到 $recvFiles 个文件", "✅ Received $recvFiles file(s)"), Toast.LENGTH_LONG).show()
+        } else {
+            status.setTextColor(Color.parseColor("#d93025"))
+            status.text = t("⚠ 收到 $recvFiles 个，失败 $recvFailed 个，请在 iPhone 上重试", "⚠ Received $recvFiles, failed $recvFailed. Please retry on the iPhone.")
+        }
+        try {
+            @Suppress("DEPRECATION")
+            (getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator).vibrate(400)
+        } catch (_: Exception) {
         }
     }
 
@@ -596,7 +751,7 @@ class MainActivity : Activity() {
                 s == null -> { qrView.setImageBitmap(null); caption.text = t("还没有图片，请从相册分享图片到本应用。", "No photos yet. Share photos from your gallery to this app.") }
                 ip == null -> { qrView.setImageBitmap(null); caption.text = t("未检测到局域网地址，请连接 Wi-Fi 或开启热点。", "No local network found. Connect to Wi-Fi or turn on your hotspot.") }
                 else -> {
-                    val url = "http://$ip:${s.listeningPort}/"
+                    val url = if (receiveMode) "http://$ip:${s.listeningPort}/upload?t=$recvToken" else "http://$ip:${s.listeningPort}/"
                     val sc = false
                     val qrText = if (sc) "shortcuts://run-shortcut?name=SaveFromAndroid&input=text&text=" +
                         URLEncoder.encode(url, "UTF-8") else url
@@ -607,12 +762,18 @@ class MainActivity : Activity() {
                     else
                         t("iPhone 相机扫码打开：\n$url\n\niPhone 上：先点 ① 添加快捷指令（仅第一次），再点 ② 存入相册。\n（传输期间请保持本应用在前台）",
                             "Scan with your iPhone camera:\n$url\n\nOn the iPhone: tap ① to add the shortcut (first time only), then ② to save to Photos.\n(Keep this app open while transferring)")
-                    if (ip.startsWith("172.20.10."))
+                    if (receiveMode)
+                        caption.text = t(
+                            "iPhone 相机扫码，打开页面后点「选择照片 / 视频」，选好就会自动传到这台手机。\n照片会保存在相册的「OneButtonShare」文件夹。\n（传输期间请保持本应用在前台）",
+                            "Scan with your iPhone camera, then tap “Choose photos / videos”. They’re sent to this phone automatically.\nFiles are saved in the “OneButtonShare” album.\n(Keep this app open while transferring)"
+                        )
+                    if (!receiveMode && ip.startsWith("172.20.10."))
                         caption.text = t(
                             "✅ 已加入 iPhone 的热点。\n请在 iPhone 上点「继续」开始接收。\n\n",
                             "✅ Joined the iPhone’s hotspot.\nOn the iPhone, tap “Continue” to start receiving.\n\n"
                         ) + caption.text
-                    info.text = t("已就绪：${items.size} 个文件", "Ready: ${items.size} file(s)")
+                    info.text = if (receiveMode) t("接收模式：iPhone → 安卓", "Receive mode: iPhone → Android")
+                    else t("已就绪：${items.size} 个文件", "Ready: ${items.size} file(s)")
                 }
             }
         }

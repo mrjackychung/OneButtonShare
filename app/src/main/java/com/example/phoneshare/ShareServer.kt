@@ -2,6 +2,7 @@ package com.example.phoneshare
 
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoHTTPD.IHTTPSession
+import fi.iki.elonen.NanoHTTPD.Method
 import fi.iki.elonen.NanoHTTPD.Response
 import fi.iki.elonen.NanoHTTPD.Response.Status
 import java.io.File
@@ -209,6 +210,77 @@ private val SC_HELP = mapOf(
     ))
 )
 
+/** 上传页文字：标题、选择按钮、提示、完成、失败 */
+private val UPLOAD_STR = mapOf(
+    "en" to listOf("Send photos to Android", "📷 Choose photos / videos", "Select as many as you like. Keep this page open until it finishes.", "✅ All sent!", "⚠ Some files failed. Please try again."),
+    "zh-Hans" to listOf("发送照片到安卓", "📷 选择照片 / 视频", "可以多选。传输完成前请保持此页面打开。", "✅ 全部发送完成！", "⚠ 有文件发送失败，请重试。"),
+    "zh-Hant" to listOf("傳送照片到 Android", "📷 選擇照片 / 影片", "可多選。傳送完成前請保持此頁面開啟。", "✅ 全部傳送完成！", "⚠ 有檔案傳送失敗，請重試。"),
+    "ja" to listOf("Android に写真を送る", "📷 写真・ビデオを選択", "複数選択できます。完了するまでこのページを開いたままにしてください。", "✅ すべて送信しました！", "⚠ 送信に失敗したファイルがあります。もう一度お試しください。"),
+    "ko" to listOf("Android로 사진 보내기", "📷 사진 / 동영상 선택", "여러 개 선택할 수 있습니다. 완료될 때까지 이 페이지를 열어 두세요.", "✅ 모두 전송했습니다!", "⚠ 일부 파일 전송에 실패했습니다. 다시 시도하세요."),
+    "es" to listOf("Enviar fotos a Android", "📷 Elegir fotos / vídeos", "Puedes elegir varias. Mantén esta página abierta hasta que termine.", "✅ ¡Todo enviado!", "⚠ Algunos archivos fallaron. Inténtalo de nuevo."),
+    "fr" to listOf("Envoyer des photos vers Android", "📷 Choisir photos / vidéos", "Sélection multiple possible. Gardez cette page ouverte jusqu’à la fin.", "✅ Tout est envoyé !", "⚠ Certains fichiers ont échoué. Réessayez."),
+    "de" to listOf("Fotos an Android senden", "📷 Fotos / Videos auswählen", "Mehrfachauswahl möglich. Seite bis zum Ende geöffnet lassen.", "✅ Alles gesendet!", "⚠ Einige Dateien sind fehlgeschlagen. Bitte erneut versuchen.")
+)
+
+private const val UPLOAD_HTML = """<!doctype html><html lang="__LANG__"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__TITLE__</title>
+<style>
+body{font-family:-apple-system,sans-serif;margin:0;padding:16px;background:#f2f2f7;color:#111}
+h2{margin:8px 0 4px}.hint{color:#555;font-size:14px;margin-bottom:16px}
+.pick{display:block;text-align:center;background:#34c759;color:#fff;font-size:22px;font-weight:700;padding:22px 12px;border-radius:16px}
+#sum{margin:14px 0 6px;font-size:15px;font-weight:600;text-align:center}
+.bar{height:6px;background:#d1d1d6;border-radius:3px;overflow:hidden}
+.bar i{display:block;height:6px;width:0;background:#007aff}
+.r{background:#fff;border-radius:10px;padding:8px 10px;margin-top:8px}
+.r .n{font-size:13px;color:#555;margin-bottom:6px;word-break:break-all}
+.r.ok .bar i{background:#34c759}.r.bad .bar i{background:#ff3b30}
+</style></head>
+<body data-t="__TOKEN__" data-done="__DONE__" data-fail="__FAIL__">
+<h2>__TITLE__</h2>
+<div class="hint">__HINT__</div>
+<label class="pick">__CHOOSE__<input id="f" type="file" multiple accept="image/*,video/*" style="display:none"></label>
+<div id="sum"></div>
+<div class="bar"><i id="ob"></i></div>
+<div id="list"></div>
+<script>
+var T=document.body.getAttribute('data-t');
+var DONE=document.body.getAttribute('data-done'),FAIL=document.body.getAttribute('data-fail');
+var list=document.getElementById('list'),sum=document.getElementById('sum'),ob=document.getElementById('ob');
+document.getElementById('f').addEventListener('change',function(e){start(Array.prototype.slice.call(e.target.files));});
+function fmt(b){return b>=1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB';}
+function start(files){
+ if(!files.length)return;
+ list.innerHTML='';ob.style.width='0%';sum.textContent='';
+ var total=0;files.forEach(function(f){total+=f.size;});
+ var rows=files.map(function(f){var d=document.createElement('div');d.className='r';
+  d.innerHTML='<div class="n"></div><div class="bar"><i></i></div>';
+  d.firstChild.textContent=f.name+' · '+fmt(f.size);list.appendChild(d);return d;});
+ var done=0,fail=0,idx=0,t0=Date.now();
+ function next(){
+  if(idx>=files.length){sum.textContent=fail?FAIL:DONE;if(!fail)ob.style.width='100%';return;}
+  var f=files[idx],row=rows[idx],i=idx;
+  var x=new XMLHttpRequest();
+  x.open('POST','/put?t='+encodeURIComponent(T)+'&name='+encodeURIComponent(f.name)+'&bi='+i+'&bc='+files.length+'&bt='+total);
+  x.setRequestHeader('Content-Type',f.type||'application/octet-stream');
+  x.upload.onprogress=function(e){
+   var l=e.loaded,all=done+l,s=(Date.now()-t0)/1000;
+   row.lastChild.firstChild.style.width=(f.size?l*100/f.size:100)+'%';
+   ob.style.width=(total?all*100/total:100)+'%';
+   sum.textContent=Math.round(total?all*100/total:100)+'% · '+fmt(all)+' / '+fmt(total)+(s>1?' · '+fmt(all/s)+'/s':'');
+  };
+  x.onload=function(){
+   if(x.status==200){done+=f.size;row.className='r ok';row.lastChild.firstChild.style.width='100%';}
+   else{fail++;row.className='r bad';}
+   idx++;next();
+  };
+  x.onerror=function(){fail++;row.className='r bad';idx++;next();};
+  x.send(f);
+ }
+ next();
+}
+</script></body></html>"""
+
 private val LANG_NAMES = linkedMapOf(
     "en" to "English", "zh-Hans" to "简体中文", "zh-Hant" to "繁體中文", "ja" to "日本語",
     "ko" to "한국어", "es" to "Español", "fr" to "Français", "de" to "Deutsch"
@@ -234,12 +306,22 @@ class ShareServer(
     port: Int,
     private val items: List<ShareItem>,
     private val shortcutAsset: (() -> InputStream)?,
+    private val receiver: Receiver?,
     private val progress: (index: Int, sent: Long, total: Long) -> Unit,
     private val listener: (kind: String, index: Int) -> Unit
 ) : NanoHTTPD(port) {
 
     override fun serve(session: IHTTPSession): Response {
         val uri = session.uri
+        if (receiver != null) {
+            if (uri == "/upload") {
+                if (session.parms["t"] != receiver.token) return plain(Status.FORBIDDEN, "Invalid link. Scan the QR code again.")
+                val lang = pickLang(session.headers["accept-language"], session.parms["lang"])
+                return uploadPage(lang, receiver.token)
+            }
+            if (uri == "/put" && session.method == Method.POST) return handlePut(session, receiver)
+            return plain(Status.NOT_FOUND, "Scan the QR code on the Android screen.")
+        }
         if (uri == "/" || uri.isEmpty()) {
             listener("open", -1)
             val lang = pickLang(session.headers["accept-language"], session.parms["lang"])
@@ -301,6 +383,65 @@ class ShareServer(
     }
 
     private val ver = System.currentTimeMillis()
+
+    private fun plain(st: Status, msg: String): Response =
+        NanoHTTPD.newFixedLengthResponse(st, "text/plain; charset=utf-8", msg)
+
+    private fun handlePut(session: IHTTPSession, r: Receiver): Response {
+        if (session.parms["t"] != r.token) return plain(Status.FORBIDDEN, "bad token")
+        val len = session.headers["content-length"]?.toLongOrNull() ?: return plain(Status.BAD_REQUEST, "length required")
+        val name = (session.parms["name"] ?: "file").filter { it.code >= 32 && it !in "/\\:*?\"<>|" }.take(120).ifEmpty { "file" }
+        val mime = (session.headers["content-type"] ?: "").substringBefore(';').trim()
+        val bi = session.parms["bi"]?.toIntOrNull() ?: 0
+        val bc = session.parms["bc"]?.toIntOrNull() ?: 1
+        val bt = session.parms["bt"]?.toLongOrNull() ?: len
+        val handle = r.open(name, mime) ?: return plain(Status.BAD_REQUEST, "unsupported file type")
+        r.onEvent(ReceiveEvent("start", bi, bc, name, 0L, len, bt))
+        return try {
+            val inp = session.inputStream
+            val buf = ByteArray(256 * 1024)
+            var remaining = len
+            var got = 0L
+            var last = 0L
+            while (remaining > 0) {
+                val n = inp.read(buf, 0, minOf(buf.size.toLong(), remaining).toInt())
+                if (n < 0) throw java.io.IOException("connection closed")
+                handle.out.write(buf, 0, n)
+                remaining -= n
+                got += n
+                val now = System.nanoTime()
+                if (now - last > 250_000_000L) {
+                    last = now
+                    r.onEvent(ReceiveEvent("progress", bi, bc, name, got, len, bt))
+                }
+            }
+            handle.out.close()
+            handle.finish()
+            r.onEvent(ReceiveEvent("done", bi, bc, name, got, len, bt))
+            NanoHTTPD.newFixedLengthResponse(Status.OK, "application/json", "{\"ok\":true}")
+        } catch (e: Exception) {
+            try { handle.out.close() } catch (_: Exception) {}
+            try { handle.abort() } catch (_: Exception) {}
+            r.onEvent(ReceiveEvent("fail", bi, bc, name, 0L, len, bt))
+            plain(Status.INTERNALERROR, "failed")
+        }
+    }
+
+    private fun uploadPage(lang: String, token: String): Response {
+        val u = UPLOAD_STR[lang] ?: UPLOAD_STR.getValue("en")
+        fun attr(x: String) = esc(x).replace("\"", "&quot;")
+        val html = UPLOAD_HTML
+            .replace("__LANG__", lang)
+            .replace("__TITLE__", esc(u[0]))
+            .replace("__CHOOSE__", esc(u[1]))
+            .replace("__HINT__", esc(u[2]))
+            .replace("__DONE__", attr(u[3]))
+            .replace("__FAIL__", attr(u[4]))
+            .replace("__TOKEN__", attr(token))
+        val res = NanoHTTPD.newFixedLengthResponse(Status.OK, "text/html; charset=utf-8", html)
+        res.addHeader("Cache-Control", "no-store")
+        return res
+    }
 
     private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
